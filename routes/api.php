@@ -3,6 +3,7 @@
 use App\Http\Controllers\DecisaoExpedicaoController;
 use App\Http\Controllers\ExpedicaoController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\StatusExpedicaoController;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
@@ -20,10 +21,15 @@ Route::post('/login', LoginController::class)
  * O `missing()` troca o 404 padrão do route model binding, que cita o nome da
  * classe do model, por uma mensagem do domínio.
  */
-Route::get('/expedicoes/{expedicao}', [ExpedicaoController::class, 'show'])
-    ->middleware('throttle:consulta-publica')
-    ->missing($expedicaoNaoEncontrada)
-    ->name('expedicoes.show');
+Route::middleware('throttle:consulta-publica')->group(function () use ($expedicaoNaoEncontrada): void {
+    Route::get('/expedicoes/{expedicao}', [ExpedicaoController::class, 'show'])
+        ->missing($expedicaoNaoEncontrada)
+        ->name('expedicoes.show');
+
+    Route::get('/expedicoes/{expedicao}/status', [StatusExpedicaoController::class, 'show'])
+        ->missing($expedicaoNaoEncontrada)
+        ->name('expedicoes.status');
+});
 
 Route::middleware(['auth:sanctum', 'reino'])->group(function (): void {
     Route::post('/expedicoes', [ExpedicaoController::class, 'store'])->name('expedicoes.store');
