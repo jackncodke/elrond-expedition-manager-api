@@ -155,7 +155,9 @@ it('recusa uma data de partida invalida', function () {
 it('exige ao menos um participante', function () {
     criarComoReino(payloadDaExpedicao(['participantes' => []]))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors('participantes');
+        ->assertJsonValidationErrors([
+            'participantes' => 'A expedição precisa de ao menos um participante.',
+        ]);
 });
 
 it('valida cada participante individualmente', function () {

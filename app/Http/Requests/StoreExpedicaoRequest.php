@@ -50,6 +50,9 @@ class StoreExpedicaoRequest extends FormRequest
             'usuario_id.prohibited' => 'O Reino solicitante é determinado pelo token autenticado e não pode ser enviado.',
             'protocolo.prohibited' => 'O protocolo é gerado pela API e não pode ser enviado.',
             'status.prohibited' => 'O status inicial é sempre PENDENTE e não pode ser enviado.',
+            // Uma lista vazia falha em `required`, não em `min`: as duas
+            // chaves precisam da mensagem, senão `[]` cai no texto genérico.
+            'participantes.required' => 'A expedição precisa de ao menos um participante.',
             'participantes.min' => 'A expedição precisa de ao menos um participante.',
         ];
     }
