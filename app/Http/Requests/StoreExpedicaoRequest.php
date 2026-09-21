@@ -23,7 +23,9 @@ class StoreExpedicaoRequest extends FormRequest
             'jornada' => ['required', 'array'],
             'jornada.origem' => ['required', 'string', 'max:120'],
             'jornada.destino' => ['required', 'string', 'max:120'],
-            'jornada.data_partida_prevista' => ['required', 'date'],
+            // Uma expedição só é registrada antes de partir; `today` permite
+            // registrar uma que parte no mesmo dia.
+            'jornada.data_partida_prevista' => ['required', 'date', 'after_or_equal:today'],
             'jornada.rota_descricao' => ['nullable', 'string'],
 
             'participantes' => ['required', 'array', 'min:1'],
@@ -54,6 +56,7 @@ class StoreExpedicaoRequest extends FormRequest
             // chaves precisam da mensagem, senão `[]` cai no texto genérico.
             'participantes.required' => 'A expedição precisa de ao menos um participante.',
             'participantes.min' => 'A expedição precisa de ao menos um participante.',
+            'jornada.data_partida_prevista.after_or_equal' => 'A data de partida prevista não pode estar no passado.',
         ];
     }
 

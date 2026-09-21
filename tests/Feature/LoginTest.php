@@ -131,7 +131,12 @@ it('limita tentativas de login repetidas', function () {
         $tentativa()->assertUnprocessable();
     }
 
-    $tentativa()->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
+    $excedida = $tentativa();
+
+    $excedida->assertStatus(Response::HTTP_TOO_MANY_REQUESTS)
+        ->assertHeader('Retry-After');
+
+    expect($excedida->json('message'))->toContain('Tentativas de login em excesso');
 });
 
 it('nunca devolve o password do usuario', function () {

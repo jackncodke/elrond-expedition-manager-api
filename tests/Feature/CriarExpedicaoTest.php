@@ -5,13 +5,22 @@ use App\Models\Expedicao;
 use App\Models\Usuario;
 use App\Support\GeradorDeProtocolo;
 
+/**
+ * Data de partida relativa, e não fixa: uma data fixa vira passado com o tempo
+ * e passaria a falhar na regra `after_or_equal:today`.
+ */
+function dataDePartida(string $quando = '+6 weeks'): string
+{
+    return now()->modify($quando)->toDateString();
+}
+
 function payloadDaExpedicao(array $sobrescrever = []): array
 {
     return [...[
         'jornada' => [
             'origem' => 'Minas Tirith',
             'destino' => 'Osgiliath',
-            'data_partida_prevista' => '2026-11-03',
+            'data_partida_prevista' => dataDePartida(),
             'rota_descricao' => 'Travessia do Anduin ao amanhecer.',
         ],
         'participantes' => [
@@ -43,7 +52,7 @@ it('registra a expedicao com jornada, participantes e itens numa unica requisica
         ->assertJsonPath('decidido_por', null)
         ->assertJsonPath('decidido_em', null)
         ->assertJsonPath('jornada.origem', 'Minas Tirith')
-        ->assertJsonPath('jornada.data_partida_prevista', '2026-11-03')
+        ->assertJsonPath('jornada.data_partida_prevista', dataDePartida())
         ->assertJsonCount(2, 'participantes')
         ->assertJsonCount(2, 'itens_suprimento')
         ->assertJsonPath('participantes.0.nome', 'Faramir')
@@ -150,6 +159,30 @@ it('recusa uma data de partida invalida', function () {
             'data_partida_prevista' => 'nao-e-data',
         ],
     ]))->assertUnprocessable()->assertJsonValidationErrors('jornada.data_partida_prevista');
+});
+
+it('recusa uma data de partida no passado', function () {
+    criarComoReino(payloadDaExpedicao([
+        'jornada' => [
+            'origem' => 'Edoras',
+            'destino' => 'Isengard',
+            'data_partida_prevista' => dataDePartida('-1 day'),
+        ],
+    ]))->assertUnprocessable()->assertJsonValidationErrors([
+        'jornada.data_partida_prevista' => 'A data de partida prevista não pode estar no passado.',
+    ]);
+
+    $this->assertDatabaseCount('expedicoes', 0);
+});
+
+it('aceita uma expedicao que parte hoje', function () {
+    criarComoReino(payloadDaExpedicao([
+        'jornada' => [
+            'origem' => 'Edoras',
+            'destino' => 'Isengard',
+            'data_partida_prevista' => dataDePartida('now'),
+        ],
+    ]))->assertCreated();
 });
 
 it('exige ao menos um participante', function () {

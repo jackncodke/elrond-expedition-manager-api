@@ -3,9 +3,12 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
@@ -39,12 +42,32 @@ class AppServiceProvider extends ServiceProvider
     protected function configureRateLimiting(): void
     {
         RateLimiter::for('login', fn (Request $request): Limit => Limit::perMinute(5)
-            ->by(Str::lower($request->string('email')).'|'.$request->ip()),
+            ->by(Str::lower($request->string('email')).'|'.$request->ip())
+            ->response($this->respostaDeExcesso('auth.throttle')),
         );
 
         // A consulta por protocolo é pública e os protocolos são sequenciais,
         // logo adivinháveis. O limite não impede a enumeração, mas encarece.
-        RateLimiter::for('consulta-publica', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
+        RateLimiter::for('consulta-publica', fn (Request $request): Limit => Limit::perMinute(60)
+            ->by($request->ip())
+            ->response($this->respostaDeExcesso('api.throttle')),
+        );
+    }
+
+    /**
+     * A mensagem de 429 do ThrottleRequests é fixa no framework e não passa
+     * pelo tradutor. Esta resposta customizada devolve a versão traduzida,
+     * preservando os headers de rate limit.
+     *
+     * @return Closure(Request, array<string, mixed>): JsonResponse
+     */
+    protected function respostaDeExcesso(string $chave): Closure
+    {
+        return fn (Request $request, array $headers): JsonResponse => response()->json(
+            ['message' => __($chave, ['seconds' => $headers['Retry-After'] ?? 60])],
+            Response::HTTP_TOO_MANY_REQUESTS,
+            $headers,
+        );
     }
 
     /**

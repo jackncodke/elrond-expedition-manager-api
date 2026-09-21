@@ -265,7 +265,7 @@ curl -s -X POST http://localhost:8000/api/expedicoes \
 | Campo | Regra |
 |---|---|
 | `jornada.origem`, `jornada.destino` | Obrigatórios, até 120 caracteres |
-| `jornada.data_partida_prevista` | Obrigatório, data válida |
+| `jornada.data_partida_prevista` | Obrigatório, data válida, de hoje em diante |
 | `jornada.rota_descricao` | Opcional |
 | `participantes` | Ao menos um |
 | `participantes.*.nome` | Obrigatório, até 120 caracteres |
@@ -289,19 +289,25 @@ curl -s -X POST http://localhost:8000/api/expedicoes \
   "message": "O Reino solicitante é determinado pelo token autenticado e não pode ser enviado. (and 5 more errors)",
   "errors": {
     "usuario_id": ["O Reino solicitante é determinado pelo token autenticado e não pode ser enviado."],
-    "jornada": ["The jornada field is required."],
-    "jornada.origem": ["The jornada.origem field is required."],
-    "jornada.destino": ["The jornada.destino field is required."],
-    "jornada.data_partida_prevista": ["The jornada.data partida prevista field is required."],
+    "jornada": ["O campo jornada é obrigatório."],
+    "jornada.origem": ["O campo origem é obrigatório."],
+    "jornada.destino": ["O campo destino é obrigatório."],
+    "jornada.data_partida_prevista": ["O campo data de partida prevista é obrigatório."],
     "participantes": ["A expedição precisa de ao menos um participante."]
   }
 }
 ```
 
-> As mensagens específicas do domínio estão em português; as genéricas do
-> framework ainda vêm em inglês, porque o projeto não publicou os arquivos de
-> tradução. Para traduzi-las: `php artisan lang:publish` e edite
-> `lang/pt_BR/validation.php`.
+Uma data de partida no passado:
+
+```json
+{
+  "message": "A data de partida prevista não pode estar no passado.",
+  "errors": {
+    "jornada.data_partida_prevista": ["A data de partida prevista não pode estar no passado."]
+  }
+}
+```
 
 ---
 
@@ -553,10 +559,14 @@ protocolo gerado em `protocolo`, que as requisições seguintes usam.
 | Login | Reino e Conselho, pela mesma rota |
 | Expedições | Criar, consultar e consultar status |
 | Decisão do Conselho (interno) | Autorizar e rejeitar, já com o header `X-Internal-Service-Token` |
-| Falhas esperadas | Uma requisição por código de erro: `401`, `403` (três variantes), `404`, `409` e `422` (três variantes) |
+| Falhas esperadas | Uma requisição por código de erro: `401`, `403` (três variantes), `404`, `409` e `422` (quatro variantes) |
 
 Todas as requisições têm testes que verificam o status e o formato da
 resposta, então a collection roda inteira no Collection Runner.
+
+Um script de pré-requisição calcula `data_partida` (daqui a 45 dias) e
+`data_partida_passada` (ontem) a cada execução, para os exemplos não
+envelhecerem contra a regra de data futura.
 
 ---
 
@@ -586,6 +596,13 @@ Formato de validação (`422`):
 
 Demais erros trazem apenas `message` — com exceção do `409`, que inclui também
 `protocolo` e `status` para o chamador saber qual decisão já valia.
+
+As mensagens saem em português, inclusive as genéricas do validador: as
+traduções estão em `lang/pt_BR/`, com os nomes legíveis dos campos em
+`validation.attributes`. A mensagem de `429` é fixa no framework e não passa
+pelo tradutor, então vem da resposta customizada dos rate limiters, em
+`AppServiceProvider`. Há um teste que falha se alguma mensagem em inglês
+escapar.
 
 > Os exemplos deste README mostram o formato de produção. Com `APP_DEBUG=true`
 > o Laravel anexa `exception`, `file`, `line` e `trace` às respostas de erro.

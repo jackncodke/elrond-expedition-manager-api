@@ -22,7 +22,7 @@ class LoginController extends Controller
         // resposta não deve permitir descobrir quais e-mails existem.
         if (! $usuario instanceof Usuario || ! $usuario->ativo || ! Hash::check($request->string('password')->value(), $usuario->password)) {
             throw ValidationException::withMessages([
-                'email' => ['As credenciais informadas são inválidas.'],
+                'email' => [__('auth.failed')],
             ]);
         }
 

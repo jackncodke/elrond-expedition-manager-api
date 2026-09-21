@@ -35,6 +35,16 @@
       "key": "protocolo_decidido",
       "value": "ELR-2026-000002",
       "type": "string"
+    },
+    {
+      "key": "data_partida",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "data_partida_passada",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -66,18 +76,33 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"gondor@reinos.elrond.test\",\n  \"password\": \"password\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/login",
-              "host": ["{{base_url}}"],
-              "path": ["api", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
             },
             "description": "Autentica o Reino de Gondor e guarda o token em `token_reino`."
           }
@@ -105,18 +130,33 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"elrond@conselho.elrond.test\",\n  \"password\": \"password\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/login",
-              "host": ["{{base_url}}"],
-              "path": ["api", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
             },
             "description": "Autentica o membro do Conselho e guarda o token em `token_conselho`."
           }
@@ -156,19 +196,37 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_reino}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_reino}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"2026-11-03\",\n    \"rota_descricao\": \"Travessia do Anduin ao amanhecer.\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" },\n    { \"nome\": \"Beregond\", \"raca\": \"Humano\", \"papel\": \"Guarda\" }\n  ],\n  \"itens_suprimento\": [\n    { \"nome\": \"Arco de Ithilien\", \"tipo\": \"arma\", \"quantidade\": 12, \"observacoes\": \"Com aljavas.\" },\n    { \"nome\": \"Lembas\", \"tipo\": \"provisao\", \"quantidade\": 40, \"observacoes\": null }\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"{{data_partida}}\",\n    \"rota_descricao\": \"Travessia do Anduin ao amanhecer.\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" },\n    { \"nome\": \"Beregond\", \"raca\": \"Humano\", \"papel\": \"Guarda\" }\n  ],\n  \"itens_suprimento\": [\n    { \"nome\": \"Arco de Ithilien\", \"tipo\": \"arma\", \"quantidade\": 12, \"observacoes\": \"Com aljavas.\" },\n    { \"nome\": \"Lembas\", \"tipo\": \"provisao\", \"quantidade\": 40, \"observacoes\": null }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
             },
             "description": "Exige token de um usuário `REINO`. Cria jornada, participantes e itens numa única requisição e guarda o protocolo gerado em `protocolo`.\n\nO Reino solicitante vem do token — `usuario_id` no corpo é recusado com 422."
           }
@@ -198,11 +256,22 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}"
+              ]
             },
             "description": "Consulta pública, sem autenticação. Devolve os dados completos, o status, a última atualização e o motivo da rejeição quando houver.\n\n`reino` e `decidido_por` trazem apenas identificação — `email` e `ativo` ficam de fora, por ser um endpoint público."
           }
@@ -234,11 +303,23 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/status",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "status"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "status"
+              ]
             },
             "description": "Consulta pública e enxuta: não carrega jornada, participantes nem itens. É o endpoint certo para polling.\n\n`finalizada` indica se a deliberação já ocorreu."
           }
@@ -274,20 +355,43 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
-              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              },
+              {
+                "key": "X-Internal-Service-Token",
+                "value": "{{internal_service_token}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "decisao"
+              ]
             },
             "description": "Autoriza a expedição. Um `motivo` enviado junto é descartado: uma expedição autorizada nunca fica com `motivo_rejeicao` preenchido."
           }
@@ -320,20 +424,43 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
-              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              },
+              {
+                "key": "X-Internal-Service-Token",
+                "value": "{{internal_service_token}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"REJEITADA\",\n  \"motivo\": \"A rota atravessa território sob domínio inimigo.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "decisao"
+              ]
             },
             "description": "Rejeita a expedição. `motivo` é obrigatório aqui."
           }
@@ -351,25 +478,42 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Edoras\",\n    \"destino\": \"Isengard\",\n    \"data_partida_prevista\": \"2026-12-01\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Éomer\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Edoras\",\n    \"destino\": \"Isengard\",\n    \"data_partida_prevista\": \"{{data_partida}}\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Éomer\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
             }
           }
         },
@@ -392,19 +536,37 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Valfenda\",\n    \"destino\": \"Mordor\",\n    \"data_partida_prevista\": \"2026-12-25\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Frodo\", \"raca\": \"Hobbit\", \"papel\": \"Portador\" }\n  ],\n  \"itens_suprimento\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Valfenda\",\n    \"destino\": \"Mordor\",\n    \"data_partida_prevista\": \"{{data_partida}}\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Frodo\", \"raca\": \"Hobbit\", \"papel\": \"Portador\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
             },
             "description": "Um Membro do Conselho não registra expedições."
           }
@@ -430,19 +592,39 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "decisao"
+              ]
             },
             "description": "Camada 2 do endpoint interno. A mesma resposta sai quando o IP de origem está fora da allowlist — de propósito, para não revelar qual camada barrou."
           }
@@ -466,20 +648,43 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_reino}}" },
-              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_reino}}"
+              },
+              {
+                "key": "X-Internal-Service-Token",
+                "value": "{{internal_service_token}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "decisao"
+              ]
             },
             "description": "Passa as duas primeiras camadas e é barrado na terceira: um Reino não decide sobre nenhuma expedição, nem sobre as suas."
           }
@@ -502,11 +707,22 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/expedicoes/ELR-2026-999999",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "ELR-2026-999999"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "ELR-2026-999999"
+              ]
             }
           }
         },
@@ -533,20 +749,43 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
-              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              },
+              {
+                "key": "X-Internal-Service-Token",
+                "value": "{{internal_service_token}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"REJEITADA\",\n  \"motivo\": \"Mudei de ideia.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo_decidido}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo_decidido}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo_decidido}}",
+                "decisao"
+              ]
             },
             "description": "Usa `protocolo_decidido`, a expedição que os seeders já deixam AUTORIZADA. A deliberação do Conselho é definitiva."
           }
@@ -570,20 +809,43 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
-              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              },
+              {
+                "key": "X-Internal-Service-Token",
+                "value": "{{internal_service_token}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decisao\": \"REJEITADA\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes",
+                "{{protocolo}}",
+                "decisao"
+              ]
             }
           }
         },
@@ -606,21 +868,94 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token_reino}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_reino}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"usuario_id\": 2,\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"2026-11-03\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"usuario_id\": 2,\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"{{data_partida}}\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/expedicoes",
-              "host": ["{{base_url}}"],
-              "path": ["api", "expedicoes"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
             },
             "description": "O Reino solicitante vem sempre do token. A API recusa `usuario_id` explicitamente, em vez de ignorar em silêncio."
+          }
+        },
+        {
+          "name": "422 · Data de partida no passado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable Content', () => pm.response.to.have.status(422));",
+                  "pm.test('aponta a data de partida', () => {",
+                  "    const erros = pm.response.json().errors;",
+                  "    pm.expect(erros).to.have.property('jornada.data_partida_prevista');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_reino}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"{{data_partida_passada}}\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
+            },
+            "description": "Uma expedição só é registrada antes de partir. `data_partida_passada` é calculada pelo script de pré-requisição da collection como ontem."
           }
         },
         {
@@ -642,23 +977,58 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"gondor@reinos.elrond.test\",\n  \"password\": \"senha-errada\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/login",
-              "host": ["{{base_url}}"],
-              "path": ["api", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
             },
             "description": "Credenciais erradas, e-mail inexistente e conta inativa devolvem a mesma resposta, para não permitir descobrir quais contas existem.\n\nAtenção: o login aceita 5 tentativas por minuto por e-mail + IP. Repetir esta requisição em sequência leva a 429."
           }
         }
       ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// A API exige data de partida a partir de hoje. Calculamos uma data",
+          "// futura a cada execucao para os exemplos nao envelhecerem.",
+          "const daquiA = (dias) => {",
+          "    const d = new Date();",
+          "    d.setDate(d.getDate() + dias);",
+          "    return d.toISOString().slice(0, 10);",
+          "};",
+          "",
+          "pm.collectionVariables.set('data_partida', daquiA(45));",
+          "pm.collectionVariables.set('data_partida_passada', daquiA(-1));"
+        ]
+      }
     }
   ]
 }
