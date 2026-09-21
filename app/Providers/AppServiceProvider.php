@@ -41,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request): Limit => Limit::perMinute(5)
             ->by(Str::lower($request->string('email')).'|'.$request->ip()),
         );
+
+        // A consulta por protocolo é pública e os protocolos são sequenciais,
+        // logo adivinháveis. O limite não impede a enumeração, mas encarece.
+        RateLimiter::for('consulta-publica', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
     }
 
     /**
