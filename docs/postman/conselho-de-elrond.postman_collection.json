@@ -1,0 +1,664 @@
+{
+  "info": {
+    "_postman_id": "b3f1c6a2-1d47-4e9a-9c88-1e5f0a7d4c31",
+    "name": "API do Conselho de Elrond",
+    "description": "Registro, consulta e deliberação de expedições.\n\n## Como usar\n\n1. Selecione o environment **Conselho de Elrond — Local**.\n2. Preencha `internal_service_token` com o valor de `INTERNAL_SERVICE_TOKEN` do seu `.env`.\n3. Rode `php artisan db:seed` para ter os usuários e as expedições de exemplo.\n4. Execute **Login › Reino** e **Login › Conselho** — os testes de cada requisição guardam os tokens em `token_reino` e `token_conselho` automaticamente.\n5. Execute **Expedições › Criar expedição** — o protocolo gerado é guardado em `protocolo` e usado pelas requisições seguintes.\n\nA pasta **Falhas esperadas** reproduz cada código de erro da API. Todas as requisições têm testes que verificam o status esperado, então a collection pode rodar inteira no Collection Runner.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token_reino",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_conselho",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "internal_service_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "protocolo",
+      "value": "ELR-2026-000001",
+      "type": "string"
+    },
+    {
+      "key": "protocolo_decidido",
+      "value": "ELR-2026-000002",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login",
+      "description": "Rota única para os dois perfis. O tipo do usuário vem na resposta.",
+      "item": [
+        {
+          "name": "Reino",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('tipo é REINO', () => pm.expect(corpo.tipo).to.eql('REINO'));",
+                  "pm.test('reino tem código', () => pm.expect(corpo.usuario.codigo).to.not.be.null);",
+                  "pm.test('não devolve password', () => pm.expect(corpo.usuario).to.not.have.property('password'));",
+                  "",
+                  "pm.collectionVariables.set('token_reino', corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"gondor@reinos.elrond.test\",\n  \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "login"]
+            },
+            "description": "Autentica o Reino de Gondor e guarda o token em `token_reino`."
+          }
+        },
+        {
+          "name": "Conselho",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('tipo é CONSELHO', () => pm.expect(corpo.tipo).to.eql('CONSELHO'));",
+                  "pm.test('conselho não tem código', () => pm.expect(corpo.usuario.codigo).to.be.null);",
+                  "",
+                  "pm.collectionVariables.set('token_conselho', corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"elrond@conselho.elrond.test\",\n  \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "login"]
+            },
+            "description": "Autentica o membro do Conselho e guarda o token em `token_conselho`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expedições",
+      "item": [
+        {
+          "name": "Criar expedição",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('nasce PENDENTE', () => pm.expect(corpo.status).to.eql('PENDENTE'));",
+                  "pm.test('protocolo no formato PREFIXO-ANO-SEQUENCIAL', () => {",
+                  "    pm.expect(corpo.protocolo).to.match(/^[A-Z]+-\\d{4}-\\d{6}$/);",
+                  "});",
+                  "pm.test('jornada, participantes e itens vieram juntos', () => {",
+                  "    pm.expect(corpo.jornada.origem).to.eql('Minas Tirith');",
+                  "    pm.expect(corpo.participantes).to.have.lengthOf(2);",
+                  "    pm.expect(corpo.itens_suprimento).to.have.lengthOf(2);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('protocolo', corpo.protocolo);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_reino}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"2026-11-03\",\n    \"rota_descricao\": \"Travessia do Anduin ao amanhecer.\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" },\n    { \"nome\": \"Beregond\", \"raca\": \"Humano\", \"papel\": \"Guarda\" }\n  ],\n  \"itens_suprimento\": [\n    { \"nome\": \"Arco de Ithilien\", \"tipo\": \"arma\", \"quantidade\": 12, \"observacoes\": \"Com aljavas.\" },\n    { \"nome\": \"Lembas\", \"tipo\": \"provisao\", \"quantidade\": 40, \"observacoes\": null }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes"]
+            },
+            "description": "Exige token de um usuário `REINO`. Cria jornada, participantes e itens numa única requisição e guarda o protocolo gerado em `protocolo`.\n\nO Reino solicitante vem do token — `usuario_id` no corpo é recusado com 422."
+          }
+        },
+        {
+          "name": "Consultar expedição",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('é a expedição pedida', () => {",
+                  "    pm.expect(corpo.protocolo).to.eql(pm.collectionVariables.get('protocolo'));",
+                  "});",
+                  "pm.test('consulta pública não expõe dados de conta', () => {",
+                  "    pm.expect(corpo.reino).to.not.have.property('email');",
+                  "    pm.expect(corpo.reino).to.not.have.property('ativo');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}"]
+            },
+            "description": "Consulta pública, sem autenticação. Devolve os dados completos, o status, a última atualização e o motivo da rejeição quando houver.\n\n`reino` e `decidido_por` trazem apenas identificação — `email` e `ativo` ficam de fora, por ser um endpoint público."
+          }
+        },
+        {
+          "name": "Consultar status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('traz apenas o andamento', () => {",
+                  "    pm.expect(corpo).to.have.all.keys(",
+                  "        'protocolo', 'status', 'finalizada', 'motivo_rejeicao',",
+                  "        'decidido_em', 'criado_em', 'atualizado_em',",
+                  "    );",
+                  "});",
+                  "pm.test('status é um dos três valores', () => {",
+                  "    pm.expect(corpo.status).to.be.oneOf(['PENDENTE', 'AUTORIZADA', 'REJEITADA']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "status"]
+            },
+            "description": "Consulta pública e enxuta: não carrega jornada, participantes nem itens. É o endpoint certo para polling.\n\n`finalizada` indica se a deliberação já ocorreu."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decisão do Conselho (interno)",
+      "description": "Requisição interna. Exige as três camadas ao mesmo tempo:\n\n1. **Rede** — IP de origem dentro de `INTERNAL_ALLOWED_IPS`\n2. **Token de serviço** — header `X-Internal-Service-Token`\n3. **Usuário** — token Sanctum de um usuário `tipo = CONSELHO`\n\nFalhas nas camadas 1 e 2 devolvem o mesmo 403 genérico, sem indicar qual delas barrou.",
+      "item": [
+        {
+          "name": "Autorizar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('ficou AUTORIZADA', () => pm.expect(corpo.status).to.eql('AUTORIZADA'));",
+                  "pm.test('sem motivo de rejeição', () => pm.expect(corpo.motivo_rejeicao).to.be.null);",
+                  "pm.test('registrou quem decidiu e quando', () => {",
+                  "    pm.expect(corpo.decidido_por.tipo).to.eql('CONSELHO');",
+                  "    pm.expect(corpo.decidido_em).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
+              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+            },
+            "description": "Autoriza a expedição. Um `motivo` enviado junto é descartado: uma expedição autorizada nunca fica com `motivo_rejeicao` preenchido."
+          }
+        },
+        {
+          "name": "Rejeitar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Esta requisição só passa numa expedição ainda PENDENTE.",
+                  "// Depois de 'Autorizar', a mesma expedição responde 409.",
+                  "pm.test('200 OK ou 409 se já decidida', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 409]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test('ficou REJEITADA com motivo', () => {",
+                  "        pm.expect(corpo.status).to.eql('REJEITADA');",
+                  "        pm.expect(corpo.motivo_rejeicao).to.not.be.empty;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
+              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"REJEITADA\",\n  \"motivo\": \"A rota atravessa território sob domínio inimigo.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+            },
+            "description": "Rejeita a expedição. `motivo` é obrigatório aqui."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Falhas esperadas",
+      "description": "Cada requisição desta pasta reproduz um código de erro da API.",
+      "item": [
+        {
+          "name": "401 · Criar expedição sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Edoras\",\n    \"destino\": \"Isengard\",\n    \"data_partida_prevista\": \"2026-12-01\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Éomer\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes"]
+            }
+          }
+        },
+        {
+          "name": "403 · Conselho tentando criar expedição",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('diz que a rota é de Reino', () => {",
+                  "    pm.expect(pm.response.json().message).to.include('REINO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jornada\": {\n    \"origem\": \"Valfenda\",\n    \"destino\": \"Mordor\",\n    \"data_partida_prevista\": \"2026-12-25\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Frodo\", \"raca\": \"Hobbit\", \"papel\": \"Portador\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes"]
+            },
+            "description": "Um Membro do Conselho não registra expedições."
+          }
+        },
+        {
+          "name": "403 · Decisão sem token de serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('mensagem genérica, sem citar IP nem token', () => {",
+                  "    const mensagem = pm.response.json().message;",
+                  "    pm.expect(mensagem).to.not.include('IP');",
+                  "    pm.expect(mensagem).to.not.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+            },
+            "description": "Camada 2 do endpoint interno. A mesma resposta sai quando o IP de origem está fora da allowlist — de propósito, para não revelar qual camada barrou."
+          }
+        },
+        {
+          "name": "403 · Reino tentando decidir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('diz que a rota é do Conselho', () => {",
+                  "    pm.expect(pm.response.json().message).to.include('Conselho');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_reino}}" },
+              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"AUTORIZADA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+            },
+            "description": "Passa as duas primeiras camadas e é barrado na terceira: um Reino não decide sobre nenhuma expedição, nem sobre as suas."
+          }
+        },
+        {
+          "name": "404 · Protocolo inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('não vaza o nome da classe do model', () => {",
+                  "    pm.expect(pm.response.text()).to.not.include('App\\\\Models');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/ELR-2026-999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "ELR-2026-999999"]
+            }
+          }
+        },
+        {
+          "name": "409 · Decidir expedição já finalizada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "",
+                  "pm.test('informa qual decisão já valia', () => {",
+                  "    pm.expect(corpo.status).to.be.oneOf(['AUTORIZADA', 'REJEITADA']);",
+                  "    pm.expect(corpo.protocolo).to.eql(pm.collectionVariables.get('protocolo_decidido'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
+              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"REJEITADA\",\n  \"motivo\": \"Mudei de ideia.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo_decidido}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo_decidido}}", "decisao"]
+            },
+            "description": "Usa `protocolo_decidido`, a expedição que os seeders já deixam AUTORIZADA. A deliberação do Conselho é definitiva."
+          }
+        },
+        {
+          "name": "422 · Rejeitar sem motivo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable Content', () => pm.response.to.have.status(422));",
+                  "pm.test('aponta o campo motivo', () => {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('motivo');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_conselho}}" },
+              { "key": "X-Internal-Service-Token", "value": "{{internal_service_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"REJEITADA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes", "{{protocolo}}", "decisao"]
+            }
+          }
+        },
+        {
+          "name": "422 · Forjar o Reino solicitante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable Content', () => pm.response.to.have.status(422));",
+                  "pm.test('recusa usuario_id explicitamente', () => {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('usuario_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_reino}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 2,\n  \"jornada\": {\n    \"origem\": \"Minas Tirith\",\n    \"destino\": \"Osgiliath\",\n    \"data_partida_prevista\": \"2026-11-03\"\n  },\n  \"participantes\": [\n    { \"nome\": \"Faramir\", \"raca\": \"Humano\", \"papel\": \"Líder\" }\n  ],\n  \"itens_suprimento\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expedicoes"]
+            },
+            "description": "O Reino solicitante vem sempre do token. A API recusa `usuario_id` explicitamente, em vez de ignorar em silêncio."
+          }
+        },
+        {
+          "name": "422 · Credenciais inválidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable Content', () => pm.response.to.have.status(422));",
+                  "pm.test('não revela se a conta existe', () => {",
+                  "    pm.expect(pm.response.json().errors.email[0]).to.include('inválidas');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"gondor@reinos.elrond.test\",\n  \"password\": \"senha-errada\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "login"]
+            },
+            "description": "Credenciais erradas, e-mail inexistente e conta inativa devolvem a mesma resposta, para não permitir descobrir quais contas existem.\n\nAtenção: o login aceita 5 tentativas por minuto por e-mail + IP. Repetir esta requisição em sequência leva a 429."
+          }
+        }
+      ]
+    }
+  ]
+}

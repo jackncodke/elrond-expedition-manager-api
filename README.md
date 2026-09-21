@@ -29,6 +29,7 @@ A especificação que originou o projeto está em
   - [4. Decisão do Conselho (interno)](#4-decisão-do-conselho-interno)
   - [5. Consultar status](#5-consultar-status)
 - [Diferenças de acesso por tipo](#diferenças-de-acesso-por-tipo)
+- [Collection do Postman](#collection-do-postman)
 - [Respostas de erro](#respostas-de-erro)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Estrutura](#estrutura)
@@ -529,6 +530,33 @@ o polling.
 
 Um Reino não decide sobre nenhuma expedição, nem sobre as suas. Um Membro do
 Conselho não registra expedições.
+
+---
+
+## Collection do Postman
+
+Em [`docs/postman/`](docs/postman/):
+
+- `conselho-de-elrond.postman_collection.json`
+- `conselho-de-elrond.postman_environment.json`
+
+Importe os dois, selecione o environment **Conselho de Elrond — Local** e
+preencha `internal_service_token` com o valor de `INTERNAL_SERVICE_TOKEN` do
+seu `.env`. Rode `php artisan db:seed` antes.
+
+O fluxo se encadeia sozinho: **Login › Reino** e **Login › Conselho** guardam
+os tokens em `token_reino` e `token_conselho`; **Criar expedição** guarda o
+protocolo gerado em `protocolo`, que as requisições seguintes usam.
+
+| Pasta | Conteúdo |
+|---|---|
+| Login | Reino e Conselho, pela mesma rota |
+| Expedições | Criar, consultar e consultar status |
+| Decisão do Conselho (interno) | Autorizar e rejeitar, já com o header `X-Internal-Service-Token` |
+| Falhas esperadas | Uma requisição por código de erro: `401`, `403` (três variantes), `404`, `409` e `422` (três variantes) |
+
+Todas as requisições têm testes que verificam o status e o formato da
+resposta, então a collection roda inteira no Collection Runner.
 
 ---
 
