@@ -13,6 +13,9 @@ class LoginController extends Controller
 {
     /**
      * Autentica um Reino ou um Membro do Conselho e emite um token do Sanctum.
+     *
+     * O token expira conforme o tipo do usuário (ver config/conselho.php) e
+     * revoga os tokens emitidos antes dele para o mesmo usuário.
      */
     public function __invoke(LoginRequest $request): JsonResponse
     {
@@ -26,8 +29,12 @@ class LoginController extends Controller
             ]);
         }
 
+        // Cada login abre uma sessão única: os tokens anteriores são revogados
+        // para que um token esquecido em outro cliente não siga válido.
+        $usuario->tokens()->delete();
+
         return response()->json([
-            'token' => $usuario->createToken('api')->plainTextToken,
+            'token' => $usuario->createToken('api', ['*'], $usuario->tipo->expiracaoDoToken())->plainTextToken,
             'tipo' => $usuario->tipo->value,
             'usuario' => new UsuarioResource($usuario),
         ]);

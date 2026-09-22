@@ -48,3 +48,17 @@ function something()
 {
     // ..
 }
+
+/**
+ * Descarta o usuário que o guard já resolveu nesta requisição.
+ *
+ * Em produção cada requisição roda num processo novo, mas num teste a
+ * aplicação é reaproveitada entre os `getJson()`/`postJson()` e o
+ * `RequestGuard` guarda o usuário autenticado. Sem isso, um token revogado
+ * ou vencido no meio do teste continuaria sendo aceito pelas chamadas
+ * seguintes, escondendo justamente o que se quer verificar.
+ */
+function reiniciaAutenticacao(): void
+{
+    app('auth')->forgetGuards();
+}

@@ -3,7 +3,9 @@
 use App\Enums\TipoUsuario;
 use App\Models\Usuario;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\PersonalAccessToken;
 
 it('autentica um usuario REINO e devolve token e tipo', function () {
     $reino = Usuario::factory()->reino()->create([
@@ -152,4 +154,118 @@ it('nunca devolve o password do usuario', function () {
 
     expect($resposta->json('usuario'))->not->toHaveKey('password')
         ->and($resposta->content())->not->toContain('senha-do-reino');
+});
+
+it('emite um token de REINO que expira em 8 horas', function () {
+    Usuario::factory()->reino()->create([
+        'email' => 'gondor@elrond.test',
+        'password' => 'senha-do-reino',
+    ]);
+
+    $this->freezeTime();
+
+    $this->postJson(route('login'), [
+        'email' => 'gondor@elrond.test',
+        'password' => 'senha-do-reino',
+    ])->assertOk();
+
+    expect(PersonalAccessToken::sole()->expires_at->format('Y-m-d H:i:s'))
+        ->toBe(Date::now()->addMinutes(480)->format('Y-m-d H:i:s'));
+});
+
+it('emite um token de CONSELHO que expira em 2 horas', function () {
+    Usuario::factory()->conselho()->create([
+        'email' => 'elrond@elrond.test',
+        'password' => 'senha-do-conselho',
+    ]);
+
+    $this->freezeTime();
+
+    $this->postJson(route('login'), [
+        'email' => 'elrond@elrond.test',
+        'password' => 'senha-do-conselho',
+    ])->assertOk();
+
+    expect(PersonalAccessToken::sole()->expires_at->format('Y-m-d H:i:s'))
+        ->toBe(Date::now()->addMinutes(120)->format('Y-m-d H:i:s'));
+});
+
+it('usa os minutos de expiracao configurados para cada tipo', function () {
+    config()->set('conselho.autenticacao.expiracao_em_minutos', [
+        TipoUsuario::Reino->value => 15,
+        TipoUsuario::Conselho->value => 5,
+    ]);
+
+    expect(TipoUsuario::Reino->minutosDeExpiracaoDoToken())->toBe(15)
+        ->and(TipoUsuario::Conselho->minutosDeExpiracaoDoToken())->toBe(5);
+});
+
+it('recusa com 401 um token expirado', function () {
+    Usuario::factory()->conselho()->create([
+        'email' => 'elrond@elrond.test',
+        'password' => 'senha-do-conselho',
+    ]);
+
+    $token = $this->postJson(route('login'), [
+        'email' => 'elrond@elrond.test',
+        'password' => 'senha-do-conselho',
+    ])->json('token');
+
+    Route::middleware(['auth:sanctum', 'conselho'])
+        ->get('/_teste/conselho', fn (): array => ['ok' => true]);
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/_teste/conselho')
+        ->assertOk();
+
+    // Um minuto depois do prazo de 2h do Conselho.
+    $this->travelTo(Date::now()->addMinutes(121));
+    reiniciaAutenticacao();
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/_teste/conselho')
+        ->assertUnauthorized();
+});
+
+it('revoga o token anterior a cada novo login', function () {
+    Usuario::factory()->reino()->create([
+        'email' => 'gondor@elrond.test',
+        'password' => 'senha-do-reino',
+    ]);
+
+    $credenciais = ['email' => 'gondor@elrond.test', 'password' => 'senha-do-reino'];
+
+    $antigo = $this->postJson(route('login'), $credenciais)->json('token');
+    $novo = $this->postJson(route('login'), $credenciais)->json('token');
+
+    Route::middleware(['auth:sanctum', 'reino'])
+        ->get('/_teste/reino', fn (): array => ['ok' => true]);
+
+    $this->withHeader('Authorization', "Bearer {$antigo}")
+        ->getJson('/_teste/reino')
+        ->assertUnauthorized();
+
+    $this->withHeader('Authorization', "Bearer {$novo}")
+        ->getJson('/_teste/reino')
+        ->assertOk();
+
+    $this->assertDatabaseCount('personal_access_tokens', 1);
+});
+
+it('nao revoga os tokens de outros usuarios ao fazer login', function () {
+    $outro = Usuario::factory()->conselho()->create();
+    $outro->createToken('api');
+
+    Usuario::factory()->reino()->create([
+        'email' => 'gondor@elrond.test',
+        'password' => 'senha-do-reino',
+    ]);
+
+    $this->postJson(route('login'), [
+        'email' => 'gondor@elrond.test',
+        'password' => 'senha-do-reino',
+    ])->assertOk();
+
+    $this->assertDatabaseCount('personal_access_tokens', 2);
+    expect($outro->tokens()->count())->toBe(1);
 });

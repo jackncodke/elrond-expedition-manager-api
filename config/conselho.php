@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\TipoUsuario;
+
 return [
 
     /*
@@ -19,6 +21,39 @@ return [
         )),
 
         'token_de_servico' => env('INTERNAL_SERVICE_TOKEN'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Expiração dos tokens de acesso
+    |--------------------------------------------------------------------------
+    |
+    | Validade, em minutos, do token do Sanctum emitido no login, por tipo de
+    | usuário. O Conselho tem validade menor porque decide expedições: é o
+    | perfil cujo token mais custa caro se vazar.
+    |
+    */
+
+    'autenticacao' => [
+        'expiracao_em_minutos' => [
+            TipoUsuario::Reino->value => (int) env('SANCTUM_TOKEN_EXPIRATION_REINO', 480),
+            TipoUsuario::Conselho->value => (int) env('SANCTUM_TOKEN_EXPIRATION_CONSELHO', 120),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Documentação
+    |--------------------------------------------------------------------------
+    |
+    | Caminho da especificação OpenAPI servida por `GET /docs/openapi.json`. O
+    | arquivo é escrito à mão e versionado; fica fora de `public/` para não ser
+    | exposto pelo servidor web sem passar pela rota.
+    |
+    */
+
+    'documentacao' => [
+        'especificacao' => base_path('docs/openapi.json'),
     ],
 
     /*

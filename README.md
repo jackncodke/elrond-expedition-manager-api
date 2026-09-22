@@ -4,15 +4,17 @@ API REST para registro, análise e autorização de expedições. Reinos registr
 solicitações de forma estruturada e acompanham o andamento por um protocolo
 único; Membros do Conselho deliberam por um endpoint interno.
 
-Projeto **API-only**: não há frontend, Blade ou Vite. `routes/api.php` é o
-único ponto de entrada de rotas.
+Projeto **API-only**: não há frontend, Blade nem Vite. A única página HTML é o
+Swagger UI em `GET /api/documentation`, montado direto no controller.
 
 - Laravel 13 · PHP 8.4 · PostgreSQL 15
 - Autenticação por token com Laravel Sanctum
 - Testes com Pest (SQLite in-memory)
 
 A especificação que originou o projeto está em
-[`docs/prompts/001-schema-inicial.md`](docs/prompts/001-schema-inicial.md).
+[`docs/prompts/001-schema-inicial.md`](docs/prompts/001-schema-inicial.md), e o
+contrato da API em [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.0.3) —
+navegável em `/api/documentation` com a aplicação no ar.
 
 ---
 
@@ -21,15 +23,20 @@ A especificação que originou o projeto está em
 - [Como rodar](#como-rodar)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [Modelo de acesso](#modelo-de-acesso)
+  - [Validade do token](#validade-do-token)
+  - [Uma sessão por usuário](#uma-sessão-por-usuário)
 - [Dados de exemplo](#dados-de-exemplo)
 - [Endpoints](#endpoints)
   - [1. Login](#1-login)
-  - [2. Criar expedição](#2-criar-expedição)
-  - [3. Consultar expedição](#3-consultar-expedição)
-  - [4. Decisão do Conselho (interno)](#4-decisão-do-conselho-interno)
-  - [5. Consultar status](#5-consultar-status)
+  - [2. Logout](#2-logout)
+  - [3. Criar expedição](#3-criar-expedição)
+  - [4. Consultar expedição](#4-consultar-expedição)
+  - [5. Decisão do Conselho (interno)](#5-decisão-do-conselho-interno)
+  - [6. Consultar status](#6-consultar-status)
 - [Diferenças de acesso por tipo](#diferenças-de-acesso-por-tipo)
 - [Collection do Postman](#collection-do-postman)
+- [Especificação OpenAPI](#especificação-openapi)
+  - [Swagger UI embutido](#swagger-ui-embutido)
 - [Respostas de erro](#respostas-de-erro)
 - [Testes e qualidade](#testes-e-qualidade)
 - [Estrutura](#estrutura)
@@ -42,6 +49,9 @@ Pré-requisitos: PHP 8.4 com as extensões `pdo_pgsql` e `pdo_sqlite` (esta
 última só para rodar os testes), Composer e um PostgreSQL acessível.
 
 ```bash
+git clone https://github.com/<seu-usuario>/elrond-expedition-manager-api.git
+cd elrond-expedition-manager-api
+
 composer install
 cp .env.example .env
 php artisan key:generate
@@ -67,6 +77,9 @@ php artisan serve
 
 A API sobe em `http://localhost:8000`. Os exemplos abaixo usam essa URL.
 
+A documentação navegável fica em <http://localhost:8000/api/documentation>, e a
+especificação crua em <http://localhost:8000/docs/openapi.json>.
+
 ---
 
 ## Variáveis de ambiente
@@ -79,6 +92,8 @@ Além das variáveis padrão do Laravel, o projeto usa:
 | `INTERNAL_ALLOWED_IPS` | Allowlist de origem do endpoint interno, separada por vírgula. Aceita IPv4, IPv6 e notação CIDR — ex.: `127.0.0.1,::1,10.0.0.0/8`. |
 | `INTERNAL_SERVICE_TOKEN` | Token de serviço do endpoint interno, comparado com `hash_equals` contra o header `X-Internal-Service-Token`. |
 | `EXPEDICAO_PROTOCOLO_PREFIXO` | Prefixo dos protocolos gerados. Padrão `ELR`, compondo `ELR-2026-000123`. |
+| `SANCTUM_TOKEN_EXPIRATION_REINO` | Validade, em minutos, do token emitido para um usuário `REINO`. Padrão `480` (8 horas). |
+| `SANCTUM_TOKEN_EXPIRATION_CONSELHO` | Validade, em minutos, do token emitido para um usuário `CONSELHO`. Padrão `120` (2 horas). |
 
 Lidas em `config/conselho.php` — nunca por `env()` fora de `config/`, para que
 `php artisan config:cache` continue funcionando.
@@ -100,6 +115,32 @@ perfis. Não há tabelas nem guards separados.
 
 O login é o mesmo para os dois; o token do Sanctum devolvido carrega o usuário,
 e os middlewares `reino` e `conselho` restringem cada rota ao perfil correto.
+
+### Validade do token
+
+O token expira conforme o perfil de quem o recebeu. O Conselho tem a validade
+mais curta porque é o perfil que autoriza ou recusa expedições — é o token cujo
+vazamento custa mais caro.
+
+| `tipo` | Validade padrão | Variável |
+|---|---|---|
+| `REINO` | 8 horas (480 min) | `SANCTUM_TOKEN_EXPIRATION_REINO` |
+| `CONSELHO` | 2 horas (120 min) | `SANCTUM_TOKEN_EXPIRATION_CONSELHO` |
+
+Passado o prazo, qualquer rota autenticada responde `401` e o cliente precisa
+fazer login de novo. O prazo é gravado em `expires_at` no momento da emissão:
+alterar a variável **não** encurta nem estende tokens já emitidos.
+
+### Uma sessão por usuário
+
+Cada login **revoga todos os tokens anteriores daquele usuário**. Um token
+esquecido num outro cliente para de valer assim que o mesmo usuário se
+autentica de novo, e a tabela `personal_access_tokens` não acumula credenciais
+órfãs.
+
+Na prática: se você faz login em dois terminais, só o segundo token funciona.
+Para encerrar uma sessão sem invalidar as outras, use [`POST /api/logout`](#2-logout),
+que revoga apenas o token da própria requisição.
 
 ---
 
@@ -124,10 +165,27 @@ A senha `password` vale apenas para desenvolvimento.
 
 ## Endpoints
 
+| Método | Rota | Autenticação | Descrição |
+|---|---|---|---|
+| `POST` | `/api/login` | Nenhuma | Autentica um Reino ou Membro do Conselho e devolve um token do Sanctum |
+| `POST` | `/api/logout` | Bearer (qualquer tipo) | Revoga o token usado na requisição |
+| `POST` | `/api/expedicoes` | Bearer (`REINO`) | Registra uma expedição com jornada, participantes e itens de suprimento |
+| `GET` | `/api/expedicoes/{protocolo}` | Nenhuma | Consulta pública dos dados completos de uma expedição |
+| `PATCH` | `/api/expedicoes/{protocolo}/decisao` | IP allowlist + `X-Internal-Service-Token` + Bearer (`CONSELHO`) | Registra a deliberação do Conselho |
+| `GET` | `/api/expedicoes/{protocolo}/status` | Nenhuma | Consulta pública apenas do andamento |
+| `GET` | `/api/documentation` | Nenhuma | Swagger UI com a especificação da API |
+| `GET` | `/docs/openapi.json` | Nenhuma | Especificação OpenAPI 3.0.3 |
+
 ### 1. Login
 
 `POST /api/login` — autentica qualquer usuário e devolve um token do Sanctum
 junto do seu tipo. Limitado a 5 tentativas por minuto por e-mail + IP.
+
+Dois efeitos importantes a cada login:
+
+- o token emitido **expira** em 8 horas (`REINO`) ou 2 horas (`CONSELHO`);
+- os tokens anteriores do mesmo usuário são **revogados**, então o login
+  encerra qualquer sessão aberta antes dele.
 
 **Como um Reino:**
 
@@ -204,7 +262,41 @@ Credenciais inválidas, e-mail inexistente ou conta inativa devolvem o **mesmo**
 
 ---
 
-### 2. Criar expedição
+### 2. Logout
+
+`POST /api/logout` — **exige um token válido, de qualquer tipo**. Revoga apenas
+o token enviado na requisição; os demais tokens do mesmo usuário, se houver,
+continuam valendo. Devolve `204` sem corpo.
+
+```bash
+curl -s -i -X POST http://localhost:8000/api/logout \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer $TOKEN_REINO"
+```
+
+```http
+HTTP/1.1 204 No Content
+```
+
+O token deixa de valer imediatamente. Reutilizá-lo devolve `401`:
+
+```bash
+curl -s -X POST http://localhost:8000/api/expedicoes \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer $TOKEN_REINO"
+```
+
+```json
+{ "message": "Unauthenticated." }
+```
+
+Chamar o logout sem `Authorization`, com um token inexistente ou com um token
+já expirado devolve o mesmo `401`. A operação é idempotente do ponto de vista
+do cliente: um token já revogado nunca volta a ser aceito.
+
+---
+
+### 3. Criar expedição
 
 `POST /api/expedicoes` — **exige token de um usuário `REINO`**. Cria a
 expedição com jornada, participantes e itens de suprimento numa única
@@ -309,9 +401,22 @@ Uma data de partida no passado:
 }
 ```
 
+Sem token, ou com um token inválido, a resposta é `401` — esta mensagem vem do
+framework e não é traduzida:
+
+```json
+{ "message": "Unauthenticated." }
+```
+
+Com o token de um Membro do Conselho, `403`:
+
+```json
+{ "message": "Acesso restrito a usuários do tipo REINO." }
+```
+
 ---
 
-### 3. Consultar expedição
+### 4. Consultar expedição
 
 `GET /api/expedicoes/{protocolo}` — **consulta pública**, sem autenticação.
 Devolve os dados completos, o status, a última atualização e o motivo da
@@ -360,7 +465,7 @@ Protocolo inexistente devolve `404`:
 
 ---
 
-### 4. Decisão do Conselho (interno)
+### 5. Decisão do Conselho (interno)
 
 `PATCH /api/expedicoes/{protocolo}/decisao` — **requisição interna**. Exige as
 três camadas ao mesmo tempo:
@@ -482,7 +587,7 @@ curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
 
 ---
 
-### 5. Consultar status
+### 6. Consultar status
 
 `GET /api/expedicoes/{protocolo}/status` — **consulta pública**. Devolve apenas
 o andamento, sem carregar jornada, participantes nem itens. É o endpoint certo
@@ -529,10 +634,13 @@ o polling.
 | Endpoint | Público | `REINO` | `CONSELHO` | Interno |
 |---|:---:|:---:|:---:|:---:|
 | `POST /api/login` | ✅ | ✅ | ✅ | — |
+| `POST /api/logout` | ❌ `401` | ✅ | ✅ | — |
 | `POST /api/expedicoes` | ❌ `401` | ✅ | ❌ `403` | — |
 | `GET /api/expedicoes/{protocolo}` | ✅ | ✅ | ✅ | — |
 | `PATCH /api/expedicoes/{protocolo}/decisao` | ❌ `403` | ❌ `403` | ✅ | obrigatório |
 | `GET /api/expedicoes/{protocolo}/status` | ✅ | ✅ | ✅ | — |
+| `GET /api/documentation` | ✅ | ✅ | ✅ | — |
+| `GET /docs/openapi.json` | ✅ | ✅ | ✅ | — |
 
 Um Reino não decide sobre nenhuma expedição, nem sobre as suas. Um Membro do
 Conselho não registra expedições.
@@ -556,10 +664,17 @@ protocolo gerado em `protocolo`, que as requisições seguintes usam.
 
 | Pasta | Conteúdo |
 |---|---|
+| Documentação | Swagger UI e especificação OpenAPI, sem token |
 | Login | Reino e Conselho, pela mesma rota |
 | Expedições | Criar, consultar e consultar status |
 | Decisão do Conselho (interno) | Autorizar e rejeitar, já com o header `X-Internal-Service-Token` |
 | Falhas esperadas | Uma requisição por código de erro: `401`, `403` (três variantes), `404`, `409` e `422` (quatro variantes) |
+| Logout | Revoga os tokens e prova que eles deixaram de valer |
+
+**Logout roda por último de propósito.** Ele revoga `token_reino` e
+`token_conselho`, então qualquer pasta depois dele falharia com `401`. Antes de
+revogar, a pasta copia o token para `token_revogado` e o reutiliza numa rota
+autenticada, para o `401` ser verificado de verdade e não por omissão.
 
 Todas as requisições têm testes que verificam o status e o formato da
 resposta, então a collection roda inteira no Collection Runner.
@@ -570,13 +685,73 @@ envelhecerem contra a regra de data futura.
 
 ---
 
+## Especificação OpenAPI
+
+O contrato completo da API está em [`docs/openapi.json`](docs/openapi.json), no
+formato **OpenAPI 3.0.3**. Ele cobre os dois esquemas de segurança
+(`bearerAuth` e `internalServiceToken`) e todas as respostas de erro,
+com schemas reutilizáveis para `Usuario`, `Expedicao`, `Jornada`,
+`Participante`, `ItemSuprimento`, `ErroValidacao` e `ErroGenerico`.
+
+O arquivo é escrito à mão a partir dos controllers, Form Requests, Resources e
+middlewares reais — não há `l5-swagger` nem qualquer gerador por anotação, para
+que a documentação não descreva um comportamento que o código já não tem.
+
+Ele cobre os **seis** endpoints da API. As duas rotas de documentação em si
+(`/api/documentation` e `/docs/openapi.json`) ficam de fora de propósito: são
+ferramenta de leitura do contrato, não parte dele.
+
+### Swagger UI embutido
+
+A API serve a própria documentação navegável, sem depender de nada instalado:
+
+| Rota | O que devolve |
+|---|---|
+| `GET /api/documentation` | Página HTML com o Swagger UI |
+| `GET /docs/openapi.json` | O arquivo `docs/openapi.json` |
+
+```bash
+php artisan serve
+# abra http://localhost:8000/api/documentation
+```
+
+As duas são **públicas** — quem alcança a API lê o contrato inteiro. Se isso não
+for desejável em produção, restrinja as duas rotas na borda (proxy ou firewall);
+não há flag de ambiente desligando-as.
+
+O Swagger UI vem do CDN unpkg em **versão fixa** (`swagger-ui-dist@5.33.0`), com
+`integrity` (SRI) e `crossorigin` em cada arquivo: sem a versão fixa o CDN
+passaria a servir o que quisesse, e sem o SRI o navegador rodaria o que viesse
+de lá sem conferir. Para atualizar, troque a versão em `DocumentacaoController`
+e recalcule os hashes:
+
+```bash
+curl -sL https://unpkg.com/swagger-ui-dist@<versao>/swagger-ui-bundle.js \
+  | openssl dgst -sha384 -binary | openssl base64 -A
+```
+
+Um teste falha se a versão deixar de ser fixa ou se algum `integrity` sumir.
+
+### Outras formas de ler
+
+```bash
+npx @redocly/cli preview-docs docs/openapi.json   # visualizar
+npx @redocly/cli lint docs/openapi.json           # validar
+```
+
+Também dá para importar `docs/openapi.json` direto no Postman, no Insomnia ou
+no editor em <https://editor.swagger.io>.
+
+---
+
 ## Respostas de erro
 
-Todas as respostas são JSON, inclusive as de erro.
+Todas as respostas são JSON, inclusive as de erro. A única exceção é
+`GET /api/documentation`, que devolve a página HTML do Swagger UI.
 
 | Código | Quando |
 |---|---|
-| `401` | Sem token, ou token inválido, numa rota autenticada |
+| `401` | Numa rota autenticada: sem token, token inválido, token expirado ou token já revogado (por logout ou por um login posterior) |
 | `403` | Tipo de usuário errado para a rota, ou requisição interna barrada por IP ou token de serviço |
 | `404` | Protocolo inexistente |
 | `409` | Decisão sobre uma expedição já autorizada ou já rejeitada |
@@ -631,8 +806,10 @@ inválidas; criação de expedição por um Reino e bloqueio de um Membro do
 Conselho; tentativa de forjar o Reino solicitante; consulta por protocolo
 existente e inexistente; as três camadas do endpoint interno barrando
 isoladamente; decisão por um Reino; autorização e rejeição bem-sucedidas;
-rejeição sem motivo; nova decisão sobre expedição já finalizada; e o status nos
-três estados.
+rejeição sem motivo; nova decisão sobre expedição já finalizada; o status nos
+três estados; a expiração do token por tipo e o `401` depois do prazo; a
+revogação dos tokens anteriores a cada login; e o logout revogando só o token
+da requisição.
 
 ---
 
@@ -644,14 +821,18 @@ app/
   Enums/             TipoUsuario, StatusExpedicao
   Exceptions/        ExpedicaoJaFinalizada (renderiza 409)
   Http/
-    Controllers/     Login, Expedicao, DecisaoExpedicao, StatusExpedicao
+    Controllers/     Login, Logout, Expedicao, DecisaoExpedicao, StatusExpedicao,
+                     Documentacao, EspecificacaoOpenApi
     Middleware/      EnsureUserIsReino, EnsureUserIsConselho, EnsureRequestIsInternal
     Requests/        Login, StoreExpedicao, DecidirExpedicao
     Resources/       Expedicao, StatusExpedicao, Usuario, UsuarioPublico, Jornada, ...
   Models/            Usuario, Expedicao, Jornada, Participante, ItemSuprimento
   Support/           GeradorDeProtocolo
-config/conselho.php  allowlist de IPs, token de serviço, prefixo do protocolo
-routes/api.php       único arquivo de rotas
+config/conselho.php  allowlist de IPs, token de serviço, prefixo do protocolo,
+                     expiração dos tokens por tipo, caminho da especificação
+routes/api.php       rotas sob o prefixo /api
+routes/docs.php      /docs/openapi.json, fora do prefixo (registrado pelo
+                     `then:` do bootstrap/app.php)
 ```
 
 Detalhes que valem saber:
@@ -664,6 +845,17 @@ Detalhes que valem saber:
   força `EnsureRequestIsInternal` a rodar antes da autenticação — do contrário
   uma requisição externa com token inválido receberia `401` e uma com token
   válido `403`, revelando a validade do token a quem está fora da rede.
+- **Sessão única por usuário.** O login revoga os tokens anteriores antes de
+  emitir o novo (`$usuario->tokens()->delete()`), e cada token nasce com
+  `expires_at` conforme o `tipo` — 8h para `REINO`, 2h para `CONSELHO`. A
+  verificação do prazo é do próprio guard do Sanctum, que já compara
+  `expires_at` a cada requisição; não há middleware nem migration extra.
+- **A única resposta HTML.** O projeto não tem camada de frontend: não existe
+  `resources/`, nem Blade, nem Vite. O Swagger UI é montado como string no
+  `DocumentacaoController`, e `/docs/openapi.json` fica fora do prefixo `/api`
+  — por isso vive em `routes/docs.php`, registrado pelo `then:` do
+  `bootstrap/app.php` e não como rota `web`, que traria sessão, cookies e CSRF
+  para um projeto que não usa nenhum dos três.
 - **Decisão concorrente.** `DecidirExpedicao` relê a expedição com
   `lockForUpdate()` dentro da transação antes de checar o status, para que duas
   decisões simultâneas não passem as duas.

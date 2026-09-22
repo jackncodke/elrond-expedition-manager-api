@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\DecisaoExpedicaoController;
+use App\Http\Controllers\DocumentacaoController;
 use App\Http\Controllers\ExpedicaoController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\StatusExpedicaoController;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +17,22 @@ $expedicaoNaoEncontrada = fn () => response()->json(
 Route::post('/login', LoginController::class)
     ->middleware('throttle:login')
     ->name('login');
+
+/**
+ * Encerra a sessão atual. Vale para os dois tipos de usuário, por isso só
+ * exige o guard do Sanctum, sem o middleware de tipo.
+ */
+Route::post('/logout', LogoutController::class)
+    ->middleware('auth:sanctum')
+    ->name('logout');
+
+/**
+ * Swagger UI, público e sem autenticação. Lê a especificação servida por
+ * `GET /docs/openapi.json` (ver routes/docs.php).
+ */
+Route::get('/documentation', DocumentacaoController::class)
+    ->middleware('throttle:consulta-publica')
+    ->name('documentation');
 
 /**
  * Consulta pública: qualquer um que tenha o protocolo acompanha a expedição.

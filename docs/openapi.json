@@ -1,0 +1,1398 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API do Conselho de Elrond",
+    "version": "1.0.0",
+    "description": "API REST para registro, análise e autorização de expedições.\n\nReinos registram solicitações de expedição e acompanham o andamento por um protocolo público; Membros do Conselho deliberam sobre elas por um endpoint interno, protegido por três camadas independentes (allowlist de IP, token de serviço e token Sanctum de um usuário `CONSELHO`).\n\nExiste **uma única tabela `usuarios`**, com o campo `tipo` (`REINO` ou `CONSELHO`) distinguindo os dois perfis. O login é o mesmo para ambos.\n\nTodas as respostas desta especificação são JSON, inclusive as de erro, e as mensagens saem em português — com exceção do `401`, cuja mensagem (`Unauthenticated.`) vem do framework sem tradução.\n\nEsta especificação foi escrita à mão a partir dos controllers, Form Requests, Resources e middlewares reais do projeto: nenhum pacote de geração automática é usado.\n\nA própria API serve esta especificação em `GET /docs/openapi.json` e uma página do Swagger UI em `GET /api/documentation`. As duas rotas são públicas e ficam de fora desta especificação de propósito: são ferramenta de leitura do contrato, não parte dele."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Ambiente local (php artisan serve)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Autenticação",
+      "description": "Emissão de tokens do Sanctum para Reinos e Membros do Conselho."
+    },
+    {
+      "name": "Expedições",
+      "description": "Registro e consulta pública de expedições."
+    },
+    {
+      "name": "Conselho (interno)",
+      "description": "Deliberação do Conselho. Só é alcançável de dentro da rede confiável."
+    }
+  ],
+  "paths": {
+    "/api/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "login",
+        "summary": "Autentica um usuário e emite um token do Sanctum",
+        "description": "Endpoint único de login para os dois perfis. A resposta traz o token, o `tipo` do usuário autenticado e seus dados completos.\n\nCredenciais inválidas, e-mail inexistente e conta inativa (`ativo = false`) produzem exatamente a mesma resposta `422`, de propósito: a API não deve permitir descobrir quais contas existem.\n\nLimitado a 5 tentativas por minuto, agrupadas por e-mail + IP.\n\nO token emitido expira conforme o `tipo` do usuário: 8 horas para `REINO`, 2 horas para `CONSELHO` (configuráveis em `SANCTUM_TOKEN_EXPIRATION_REINO` e `SANCTUM_TOKEN_EXPIRATION_CONSELHO`).\n\nCada login revoga os tokens anteriores do mesmo usuário: só o token mais recente continua valendo.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "examples": {
+                "reino": {
+                  "summary": "Reino solicitante",
+                  "value": {
+                    "email": "gondor@reinos.elrond.test",
+                    "password": "password"
+                  }
+                },
+                "conselho": {
+                  "summary": "Membro do Conselho",
+                  "value": {
+                    "email": "elrond@conselho.elrond.test",
+                    "password": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticado. O token deve ser enviado como `Authorization: Bearer <token>` e expira em 8 horas (`REINO`) ou 2 horas (`CONSELHO`). Tokens anteriores do mesmo usuário foram revogados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "examples": {
+                  "reino": {
+                    "summary": "Reino",
+                    "value": {
+                      "token": "3|Xk9fL2mQvT8sR1yB4nC7dH0jK5pW6zA2",
+                      "tipo": "REINO",
+                      "usuario": {
+                        "id": 1,
+                        "tipo": "REINO",
+                        "nome": "Reino de Gondor",
+                        "codigo": "GONDOR",
+                        "email": "gondor@reinos.elrond.test",
+                        "ativo": true
+                      }
+                    }
+                  },
+                  "conselho": {
+                    "summary": "Conselho",
+                    "value": {
+                      "token": "4|Pz7hR4nW1kL8mD3fQ9tV0sX2cB5gY6jN",
+                      "tipo": "CONSELHO",
+                      "usuario": {
+                        "id": 3,
+                        "tipo": "CONSELHO",
+                        "nome": "Elrond",
+                        "codigo": null,
+                        "email": "elrond@conselho.elrond.test",
+                        "ativo": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Credenciais inválidas, conta inativa ou corpo malformado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                },
+                "examples": {
+                  "credenciais_invalidas": {
+                    "summary": "Credenciais inválidas, e-mail inexistente ou conta inativa",
+                    "value": {
+                      "message": "As credenciais informadas são inválidas.",
+                      "errors": {
+                        "email": [
+                          "As credenciais informadas são inválidas."
+                        ]
+                      }
+                    }
+                  },
+                  "campos_ausentes": {
+                    "summary": "Corpo incompleto",
+                    "value": {
+                      "message": "O campo e-mail é obrigatório. (and 1 more error)",
+                      "errors": {
+                        "email": [
+                          "O campo e-mail é obrigatório."
+                        ],
+                        "password": [
+                          "O campo senha é obrigatório."
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/ExcessoDeRequisicoes"
+          }
+        }
+      }
+    },
+    "/api/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "logout",
+        "summary": "Revoga o token da requisição",
+        "description": "Encerra a sessão atual: revoga **apenas** o token enviado nesta requisição (`currentAccessToken`). Os demais tokens do mesmo usuário, se houver, continuam valendo — para revogar todos, basta fazer login de novo.\n\nAceita qualquer `tipo` de usuário: a rota só exige o guard do Sanctum, sem middleware de perfil.\n\nO token deixa de valer imediatamente; reutilizá-lo devolve `401`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Token revogado. Sem corpo na resposta."
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/expedicoes": {
+      "post": {
+        "tags": [
+          "Expedições"
+        ],
+        "operationId": "criarExpedicao",
+        "summary": "Registra uma expedição",
+        "description": "Cria a expedição junto com a jornada, os participantes e os itens de suprimento, em uma única transação, e devolve o protocolo gerado (`PREFIXO-ANO-SEQUENCIAL`, ex.: `ELR-2026-000123`).\n\n**Exige token de um usuário `tipo = REINO`.** Um Membro do Conselho recebe `403`.\n\nO Reino solicitante vem sempre do token autenticado. Os campos `usuario_id`, `protocolo` e `status` são recusados explicitamente com `422` — a API não os ignora em silêncio. A expedição nasce sempre com `status = PENDENTE`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriarExpedicaoRequest"
+              },
+              "examples": {
+                "completa": {
+                  "summary": "Com itens de suprimento",
+                  "value": {
+                    "jornada": {
+                      "origem": "Minas Tirith",
+                      "destino": "Osgiliath",
+                      "data_partida_prevista": "2026-11-03",
+                      "rota_descricao": "Travessia do Anduin ao amanhecer."
+                    },
+                    "participantes": [
+                      {
+                        "nome": "Faramir",
+                        "raca": "Humano",
+                        "papel": "Líder"
+                      },
+                      {
+                        "nome": "Beregond",
+                        "raca": "Humano",
+                        "papel": "Guarda"
+                      }
+                    ],
+                    "itens_suprimento": [
+                      {
+                        "nome": "Arco de Ithilien",
+                        "tipo": "arma",
+                        "quantidade": 12,
+                        "observacoes": "Com aljavas."
+                      },
+                      {
+                        "nome": "Lembas",
+                        "tipo": "provisao",
+                        "quantidade": 40,
+                        "observacoes": null
+                      }
+                    ]
+                  }
+                },
+                "sem_suprimentos": {
+                  "summary": "Sem itens — a chave precisa estar presente, mas pode vir vazia",
+                  "value": {
+                    "jornada": {
+                      "origem": "Edoras",
+                      "destino": "Abismo de Helm",
+                      "data_partida_prevista": "2026-10-12",
+                      "rota_descricao": null
+                    },
+                    "participantes": [
+                      {
+                        "nome": "Éomer",
+                        "raca": "Humano",
+                        "papel": "Líder"
+                      }
+                    ],
+                    "itens_suprimento": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Expedição registrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expedicao"
+                },
+                "example": {
+                  "protocolo": "ELR-2026-000003",
+                  "status": "PENDENTE",
+                  "motivo_rejeicao": null,
+                  "reino": {
+                    "id": 1,
+                    "tipo": "REINO",
+                    "nome": "Reino de Gondor",
+                    "codigo": "GONDOR"
+                  },
+                  "jornada": {
+                    "origem": "Minas Tirith",
+                    "destino": "Osgiliath",
+                    "data_partida_prevista": "2026-11-03",
+                    "rota_descricao": "Travessia do Anduin ao amanhecer."
+                  },
+                  "participantes": [
+                    {
+                      "nome": "Faramir",
+                      "raca": "Humano",
+                      "papel": "Líder"
+                    },
+                    {
+                      "nome": "Beregond",
+                      "raca": "Humano",
+                      "papel": "Guarda"
+                    }
+                  ],
+                  "itens_suprimento": [
+                    {
+                      "nome": "Arco de Ithilien",
+                      "tipo": "arma",
+                      "quantidade": 12,
+                      "observacoes": "Com aljavas."
+                    },
+                    {
+                      "nome": "Lembas",
+                      "tipo": "provisao",
+                      "quantidade": 40,
+                      "observacoes": null
+                    }
+                  ],
+                  "decidido_por": null,
+                  "decidido_em": null,
+                  "criado_em": "2026-09-21T20:25:48+00:00",
+                  "atualizado_em": "2026-09-21T20:25:48+00:00"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "O token pertence a um usuário que não é do tipo `REINO`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroGenerico"
+                },
+                "example": {
+                  "message": "Acesso restrito a usuários do tipo REINO."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Falha de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                },
+                "examples": {
+                  "campos_proibidos": {
+                    "summary": "Tentativa de forjar o Reino solicitante",
+                    "value": {
+                      "message": "O Reino solicitante é determinado pelo token autenticado e não pode ser enviado. (and 5 more errors)",
+                      "errors": {
+                        "usuario_id": [
+                          "O Reino solicitante é determinado pelo token autenticado e não pode ser enviado."
+                        ],
+                        "jornada": [
+                          "O campo jornada é obrigatório."
+                        ],
+                        "jornada.origem": [
+                          "O campo origem é obrigatório."
+                        ],
+                        "jornada.destino": [
+                          "O campo destino é obrigatório."
+                        ],
+                        "jornada.data_partida_prevista": [
+                          "O campo data de partida prevista é obrigatório."
+                        ],
+                        "participantes": [
+                          "A expedição precisa de ao menos um participante."
+                        ]
+                      }
+                    }
+                  },
+                  "data_no_passado": {
+                    "summary": "Data de partida anterior a hoje",
+                    "value": {
+                      "message": "A data de partida prevista não pode estar no passado.",
+                      "errors": {
+                        "jornada.data_partida_prevista": [
+                          "A data de partida prevista não pode estar no passado."
+                        ]
+                      }
+                    }
+                  },
+                  "sem_participantes": {
+                    "summary": "Lista de participantes vazia",
+                    "value": {
+                      "message": "A expedição precisa de ao menos um participante.",
+                      "errors": {
+                        "participantes": [
+                          "A expedição precisa de ao menos um participante."
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/expedicoes/{protocolo}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Protocolo"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Expedições"
+        ],
+        "operationId": "consultarExpedicao",
+        "summary": "Consulta pública de uma expedição pelo protocolo",
+        "description": "Não exige autenticação: qualquer um que tenha o protocolo acompanha a expedição.\n\nPor ser público, `reino` e `decidido_por` trazem apenas identificação (`id`, `tipo`, `nome`, `codigo`) — `email` e `ativo` ficam de fora.\n\nLimitado a 60 requisições por minuto por IP.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Expedição encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expedicao"
+                },
+                "example": {
+                  "protocolo": "ELR-2026-000002",
+                  "status": "AUTORIZADA",
+                  "motivo_rejeicao": null,
+                  "reino": {
+                    "id": 2,
+                    "tipo": "REINO",
+                    "nome": "Reino de Rohan",
+                    "codigo": "ROHAN"
+                  },
+                  "jornada": {
+                    "origem": "Edoras",
+                    "destino": "Abismo de Helm",
+                    "data_partida_prevista": "2026-10-12",
+                    "rota_descricao": "Marcha pela planície de Rohan, evitando os vaus do Isen."
+                  },
+                  "participantes": [
+                    {
+                      "nome": "Éomer",
+                      "raca": "Humano",
+                      "papel": "Líder"
+                    },
+                    {
+                      "nome": "Gimli",
+                      "raca": "Anão",
+                      "papel": "Guarda"
+                    },
+                    {
+                      "nome": "Legolas",
+                      "raca": "Elfo",
+                      "papel": "Batedor"
+                    }
+                  ],
+                  "itens_suprimento": [
+                    {
+                      "nome": "Lança de Rohan",
+                      "tipo": "arma",
+                      "quantidade": 30,
+                      "observacoes": null
+                    }
+                  ],
+                  "decidido_por": {
+                    "id": 3,
+                    "tipo": "CONSELHO",
+                    "nome": "Elrond",
+                    "codigo": null
+                  },
+                  "decidido_em": "2026-09-18T14:02:11+00:00",
+                  "criado_em": "2026-09-15T09:30:00+00:00",
+                  "atualizado_em": "2026-09-18T14:02:11+00:00"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ExpedicaoNaoEncontrada"
+          },
+          "429": {
+            "$ref": "#/components/responses/ExcessoDeRequisicoes"
+          }
+        }
+      }
+    },
+    "/api/expedicoes/{protocolo}/status": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Protocolo"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Expedições"
+        ],
+        "operationId": "consultarStatusDaExpedicao",
+        "summary": "Consulta pública do andamento de uma expedição",
+        "description": "Visão enxuta: só o andamento, sem carregar jornada, participantes nem itens de suprimento. É o endpoint indicado para polling.\n\nO campo `finalizada` indica se a deliberação do Conselho já ocorreu — é `false` apenas enquanto o status é `PENDENTE`.\n\nLimitado a 60 requisições por minuto por IP.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Andamento da expedição.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusExpedicao"
+                },
+                "examples": {
+                  "pendente": {
+                    "summary": "Ainda aguardando o Conselho",
+                    "value": {
+                      "protocolo": "ELR-2026-000001",
+                      "status": "PENDENTE",
+                      "finalizada": false,
+                      "motivo_rejeicao": null,
+                      "decidido_em": null,
+                      "criado_em": "2026-09-15T09:30:00+00:00",
+                      "atualizado_em": "2026-09-15T09:30:00+00:00"
+                    }
+                  },
+                  "rejeitada": {
+                    "summary": "Já deliberada",
+                    "value": {
+                      "protocolo": "ELR-2026-000001",
+                      "status": "REJEITADA",
+                      "finalizada": true,
+                      "motivo_rejeicao": "A rota atravessa território sob domínio inimigo.",
+                      "decidido_em": "2026-09-21T20:41:07+00:00",
+                      "criado_em": "2026-09-15T09:30:00+00:00",
+                      "atualizado_em": "2026-09-21T20:41:07+00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ExpedicaoNaoEncontrada"
+          },
+          "429": {
+            "$ref": "#/components/responses/ExcessoDeRequisicoes"
+          }
+        }
+      }
+    },
+    "/api/expedicoes/{protocolo}/decisao": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Protocolo"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "Conselho (interno)"
+        ],
+        "operationId": "decidirExpedicao",
+        "summary": "Registra a deliberação do Conselho sobre uma expedição",
+        "description": "**Rota interna.** Exige as três camadas ao mesmo tempo:\n\n1. **Rede** — IP de origem dentro de `INTERNAL_ALLOWED_IPS` (aceita IPv4, IPv6 e CIDR);\n2. **Token de serviço** — header `X-Internal-Service-Token`, comparado em tempo constante com `INTERNAL_SERVICE_TOKEN`;\n3. **Usuário** — token Sanctum de um usuário `tipo = CONSELHO`.\n\nAs camadas 1 e 2 rodam **antes** da autenticação e devolvem o mesmo `403` genérico, sem indicar qual delas barrou: uma requisição de fora da rede nunca descobre se o token de usuário era válido.\n\nA decisão é definitiva — uma expedição já `AUTORIZADA` ou `REJEITADA` responde `409`. Um `motivo` enviado junto de `AUTORIZADA` é descartado antes da validação, então uma expedição autorizada nunca fica com `motivo_rejeicao` preenchido.",
+        "security": [
+          {
+            "bearerAuth": [],
+            "internalServiceToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecidirExpedicaoRequest"
+              },
+              "examples": {
+                "autorizar": {
+                  "summary": "Autorizar",
+                  "value": {
+                    "decisao": "AUTORIZADA"
+                  }
+                },
+                "rejeitar": {
+                  "summary": "Rejeitar — o motivo é obrigatório",
+                  "value": {
+                    "decisao": "REJEITADA",
+                    "motivo": "A rota atravessa território sob domínio inimigo."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decisão registrada. Devolve a expedição completa, já atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expedicao"
+                },
+                "example": {
+                  "protocolo": "ELR-2026-000001",
+                  "status": "REJEITADA",
+                  "motivo_rejeicao": "A rota atravessa território sob domínio inimigo.",
+                  "reino": {
+                    "id": 1,
+                    "tipo": "REINO",
+                    "nome": "Reino de Gondor",
+                    "codigo": "GONDOR"
+                  },
+                  "jornada": {
+                    "origem": "Minas Tirith",
+                    "destino": "Osgiliath",
+                    "data_partida_prevista": "2026-11-03",
+                    "rota_descricao": "Descida pela estrada do Pelennor, travessia do Anduin ao amanhecer."
+                  },
+                  "participantes": [
+                    {
+                      "nome": "Faramir",
+                      "raca": "Humano",
+                      "papel": "Líder"
+                    }
+                  ],
+                  "itens_suprimento": [
+                    {
+                      "nome": "Lembas",
+                      "tipo": "provisao",
+                      "quantidade": 40,
+                      "observacoes": null
+                    }
+                  ],
+                  "decidido_por": {
+                    "id": 3,
+                    "tipo": "CONSELHO",
+                    "nome": "Elrond",
+                    "codigo": null
+                  },
+                  "decidido_em": "2026-09-21T20:41:07+00:00",
+                  "criado_em": "2026-09-15T09:30:00+00:00",
+                  "atualizado_em": "2026-09-21T20:41:07+00:00"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A requisição passou pelas camadas de rede e de token de serviço, mas não apresentou um token Sanctum válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroGenerico"
+                },
+                "example": {
+                  "message": "Unauthenticated."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Barrada por uma das camadas de proteção.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroGenerico"
+                },
+                "examples": {
+                  "requisicao_externa": {
+                    "summary": "IP fora da allowlist ou token de serviço ausente/inválido — resposta idêntica nos dois casos",
+                    "value": {
+                      "message": "Requisição não autorizada."
+                    }
+                  },
+                  "usuario_sem_permissao": {
+                    "summary": "Token Sanctum de um usuário que não é do Conselho",
+                    "value": {
+                      "message": "Acesso restrito a membros do Conselho."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ExpedicaoNaoEncontrada"
+          },
+          "409": {
+            "description": "A expedição já foi deliberada e não aceita uma nova decisão.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroConflito"
+                },
+                "example": {
+                  "message": "A expedição ELR-2026-000002 já foi AUTORIZADA e não aceita uma nova decisão.",
+                  "protocolo": "ELR-2026-000002",
+                  "status": "AUTORIZADA"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Falha de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                },
+                "examples": {
+                  "sem_decisao": {
+                    "summary": "Decisão ausente",
+                    "value": {
+                      "message": "Informe a decisão do Conselho.",
+                      "errors": {
+                        "decisao": [
+                          "Informe a decisão do Conselho."
+                        ]
+                      }
+                    }
+                  },
+                  "decisao_invalida": {
+                    "summary": "Valor fora de AUTORIZADA / REJEITADA (inclusive PENDENTE)",
+                    "value": {
+                      "message": "O valor informado em decisão é inválido.",
+                      "errors": {
+                        "decisao": [
+                          "O valor informado em decisão é inválido."
+                        ]
+                      }
+                    }
+                  },
+                  "rejeicao_sem_motivo": {
+                    "summary": "Rejeição sem motivo",
+                    "value": {
+                      "message": "O motivo é obrigatório para rejeitar uma expedição.",
+                      "errors": {
+                        "motivo": [
+                          "O motivo é obrigatório para rejeitar uma expedição."
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token pessoal emitido por `POST /api/login` (Laravel Sanctum), enviado como `Authorization: Bearer <token>`. O `tipo` do usuário dono do token é o que libera cada rota.\n\n**Validade.** O token expira conforme o perfil de quem o recebeu: 8 horas (480 min) para `REINO` e 2 horas (120 min) para `CONSELHO` — o Conselho tem o prazo mais curto porque é o perfil que decide expedições. Os prazos são configuráveis em `SANCTUM_TOKEN_EXPIRATION_REINO` e `SANCTUM_TOKEN_EXPIRATION_CONSELHO`. O prazo é gravado na emissão: mudar a configuração não afeta tokens já emitidos. Passado o prazo, qualquer rota autenticada responde `401`.\n\n**Uma sessão por usuário.** Cada login revoga todos os tokens anteriores do mesmo usuário. Para encerrar apenas a sessão atual, use `POST /api/logout`."
+      },
+      "internalServiceToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Service-Token",
+        "description": "Token de serviço das rotas internas, configurado em `INTERNAL_SERVICE_TOKEN`. Comparado com `hash_equals` e exigido **em conjunto** com a allowlist de IPs (`INTERNAL_ALLOWED_IPS`) e com o token do Sanctum. Allowlist vazia ou token não configurado bloqueiam o endpoint: a falha é sempre fechada."
+      }
+    },
+    "parameters": {
+      "Protocolo": {
+        "name": "protocolo",
+        "in": "path",
+        "required": true,
+        "description": "Protocolo público da expedição, no formato `PREFIXO-ANO-SEQUENCIAL`. O prefixo vem de `EXPEDICAO_PROTOCOLO_PREFIXO` (padrão `ELR`) e o sequencial tem 6 dígitos, reiniciando a cada ano.",
+        "schema": {
+          "$ref": "#/components/schemas/ProtocoloExpedicao"
+        },
+        "example": "ELR-2026-000001"
+      }
+    },
+    "responses": {
+      "NaoAutenticado": {
+        "description": "Token ausente, inválido, expirado ou revogado — por `POST /api/logout` ou por um login posterior do mesmo usuário. A mensagem vem do framework e não é traduzida.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErroGenerico"
+            },
+            "example": {
+              "message": "Unauthenticated."
+            }
+          }
+        }
+      },
+      "ExpedicaoNaoEncontrada": {
+        "description": "Nenhuma expedição com o protocolo informado.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErroGenerico"
+            },
+            "example": {
+              "message": "Nenhuma expedição encontrada para o protocolo informado."
+            }
+          }
+        }
+      },
+      "ExcessoDeRequisicoes": {
+        "description": "Rate limit excedido.",
+        "headers": {
+          "Retry-After": {
+            "description": "Segundos até a próxima tentativa permitida.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-RateLimit-Limit": {
+            "description": "Limite de requisições na janela.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-RateLimit-Remaining": {
+            "description": "Requisições restantes na janela.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErroGenerico"
+            },
+            "examples": {
+              "login": {
+                "summary": "Login (5 por minuto, por e-mail + IP)",
+                "value": {
+                  "message": "Tentativas de login em excesso. Tente novamente em 42 segundos."
+                }
+              },
+              "consulta_publica": {
+                "summary": "Consulta pública (60 por minuto, por IP)",
+                "value": {
+                  "message": "Requisições em excesso. Tente novamente em 31 segundos."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "TipoUsuario": {
+        "type": "string",
+        "description": "Perfil do usuário. A tabela `usuarios` é única e este campo é o que distingue um Reino solicitante de um Membro do Conselho.",
+        "enum": [
+          "REINO",
+          "CONSELHO"
+        ],
+        "example": "REINO"
+      },
+      "StatusDaExpedicao": {
+        "type": "string",
+        "description": "Situação da expedição. Nasce sempre `PENDENTE`; `AUTORIZADA` e `REJEITADA` são estados finais.",
+        "enum": [
+          "PENDENTE",
+          "AUTORIZADA",
+          "REJEITADA"
+        ],
+        "example": "PENDENTE"
+      },
+      "ProtocoloExpedicao": {
+        "type": "string",
+        "description": "Identificador público da expedição, gerado pela API.",
+        "pattern": "^[A-Z]+-\\d{4}-\\d{6}$",
+        "example": "ELR-2026-000001"
+      },
+      "Usuario": {
+        "type": "object",
+        "description": "Usuário da API, como devolvido no login (`UsuarioResource`). A senha nunca é serializada.",
+        "required": [
+          "id",
+          "tipo",
+          "nome",
+          "codigo",
+          "email",
+          "ativo"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoUsuario"
+          },
+          "nome": {
+            "type": "string",
+            "example": "Reino de Gondor"
+          },
+          "codigo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Código único do Reino. Sempre `null` para usuários `CONSELHO`.",
+            "example": "GONDOR"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "gondor@reinos.elrond.test"
+          },
+          "ativo": {
+            "type": "boolean",
+            "description": "Uma conta inativa não consegue autenticar — e a resposta é indistinguível de credencial inválida.",
+            "example": true
+          }
+        }
+      },
+      "UsuarioPublico": {
+        "type": "object",
+        "description": "Identificação de um usuário dentro de uma expedição (`UsuarioPublicoResource`). A consulta por protocolo é pública, então `email` e `ativo` ficam de fora.",
+        "required": [
+          "id",
+          "tipo",
+          "nome",
+          "codigo"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoUsuario"
+          },
+          "nome": {
+            "type": "string",
+            "example": "Elrond"
+          },
+          "codigo": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        }
+      },
+      "Jornada": {
+        "type": "object",
+        "description": "Trajeto previsto da expedição (`JornadaResource`).",
+        "required": [
+          "origem",
+          "destino",
+          "data_partida_prevista",
+          "rota_descricao"
+        ],
+        "properties": {
+          "origem": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Minas Tirith"
+          },
+          "destino": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Osgiliath"
+          },
+          "data_partida_prevista": {
+            "type": "string",
+            "format": "date",
+            "description": "Data no formato `YYYY-MM-DD`.",
+            "example": "2026-11-03"
+          },
+          "rota_descricao": {
+            "type": "string",
+            "nullable": true,
+            "example": "Travessia do Anduin ao amanhecer."
+          }
+        }
+      },
+      "Participante": {
+        "type": "object",
+        "description": "Integrante da expedição (`ParticipanteResource`).",
+        "required": [
+          "nome",
+          "raca",
+          "papel"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Faramir"
+          },
+          "raca": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Humano"
+          },
+          "papel": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Líder"
+          }
+        }
+      },
+      "ItemSuprimento": {
+        "type": "object",
+        "description": "Item levado pela expedição (`ItemSuprimentoResource`).",
+        "required": [
+          "nome",
+          "tipo",
+          "quantidade",
+          "observacoes"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Arco de Ithilien"
+          },
+          "tipo": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "Classificação livre do item — ex.: `arma`, `provisao`, `montaria`, `artefato_magico`.",
+            "example": "arma"
+          },
+          "quantidade": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 12
+          },
+          "observacoes": {
+            "type": "string",
+            "nullable": true,
+            "example": "Com aljavas completas."
+          }
+        }
+      },
+      "Expedicao": {
+        "type": "object",
+        "description": "Visão completa de uma expedição (`ExpedicaoResource`).",
+        "required": [
+          "protocolo",
+          "status",
+          "motivo_rejeicao",
+          "reino",
+          "jornada",
+          "participantes",
+          "itens_suprimento",
+          "decidido_por",
+          "decidido_em",
+          "criado_em",
+          "atualizado_em"
+        ],
+        "properties": {
+          "protocolo": {
+            "$ref": "#/components/schemas/ProtocoloExpedicao"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusDaExpedicao"
+          },
+          "motivo_rejeicao": {
+            "type": "string",
+            "nullable": true,
+            "description": "Preenchido apenas quando `status` é `REJEITADA`.",
+            "example": null
+          },
+          "reino": {
+            "$ref": "#/components/schemas/UsuarioPublico"
+          },
+          "jornada": {
+            "$ref": "#/components/schemas/Jornada"
+          },
+          "participantes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/Participante"
+            }
+          },
+          "itens_suprimento": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSuprimento"
+            }
+          },
+          "decidido_por": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UsuarioPublico"
+              }
+            ],
+            "nullable": true,
+            "description": "Membro do Conselho que deliberou. `null` enquanto a expedição está `PENDENTE`."
+          },
+          "decidido_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Data e hora da deliberação, em ISO 8601.",
+            "example": "2026-09-21T20:41:07+00:00"
+          },
+          "criado_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-15T09:30:00+00:00"
+          },
+          "atualizado_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-21T20:41:07+00:00"
+          }
+        }
+      },
+      "StatusExpedicao": {
+        "type": "object",
+        "description": "Visão enxuta do andamento de uma expedição (`StatusExpedicaoResource`).",
+        "required": [
+          "protocolo",
+          "status",
+          "finalizada",
+          "motivo_rejeicao",
+          "decidido_em",
+          "criado_em",
+          "atualizado_em"
+        ],
+        "properties": {
+          "protocolo": {
+            "$ref": "#/components/schemas/ProtocoloExpedicao"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusDaExpedicao"
+          },
+          "finalizada": {
+            "type": "boolean",
+            "description": "`false` apenas enquanto o status é `PENDENTE`. Útil para saber quando parar o polling.",
+            "example": false
+          },
+          "motivo_rejeicao": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "decidido_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "criado_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-15T09:30:00+00:00"
+          },
+          "atualizado_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-15T09:30:00+00:00"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "description": "Corpo de `POST /api/login` (`LoginRequest`).",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "example": "gondor@reinos.elrond.test"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "password"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": [
+          "token",
+          "tipo",
+          "usuario"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Token de acesso do Sanctum, em texto puro. Só é exibido nesta resposta.",
+            "example": "3|Xk9fL2mQvT8sR1yB4nC7dH0jK5pW6zA2"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoUsuario"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        }
+      },
+      "CriarExpedicaoRequest": {
+        "type": "object",
+        "description": "Corpo de `POST /api/expedicoes` (`StoreExpedicaoRequest`). Os campos `usuario_id`, `protocolo` e `status` são **proibidos**: enviá-los resulta em `422`.",
+        "required": [
+          "jornada",
+          "participantes",
+          "itens_suprimento"
+        ],
+        "properties": {
+          "jornada": {
+            "type": "object",
+            "required": [
+              "origem",
+              "destino",
+              "data_partida_prevista"
+            ],
+            "properties": {
+              "origem": {
+                "type": "string",
+                "maxLength": 120,
+                "example": "Minas Tirith"
+              },
+              "destino": {
+                "type": "string",
+                "maxLength": 120,
+                "example": "Osgiliath"
+              },
+              "data_partida_prevista": {
+                "type": "string",
+                "format": "date",
+                "description": "De hoje em diante — uma expedição só é registrada antes de partir. Uma data no passado resulta em `422`.",
+                "example": "2026-11-03"
+              },
+              "rota_descricao": {
+                "type": "string",
+                "nullable": true,
+                "example": "Travessia do Anduin ao amanhecer."
+              }
+            }
+          },
+          "participantes": {
+            "type": "array",
+            "description": "Ao menos um participante.",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "nome",
+                "raca",
+                "papel"
+              ],
+              "properties": {
+                "nome": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "example": "Faramir"
+                },
+                "raca": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "example": "Humano"
+                },
+                "papel": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "example": "Líder"
+                }
+              }
+            }
+          },
+          "itens_suprimento": {
+            "type": "array",
+            "description": "A chave precisa estar **presente**, mas pode ser uma lista vazia.",
+            "items": {
+              "type": "object",
+              "required": [
+                "nome",
+                "tipo",
+                "quantidade"
+              ],
+              "properties": {
+                "nome": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "example": "Lembas"
+                },
+                "tipo": {
+                  "type": "string",
+                  "maxLength": 40,
+                  "example": "provisao"
+                },
+                "quantidade": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "example": 40
+                },
+                "observacoes": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": null
+                }
+              }
+            }
+          },
+          "usuario_id": {
+            "description": "Proibido — o Reino solicitante vem do token autenticado.",
+            "not": {}
+          },
+          "protocolo": {
+            "description": "Proibido — gerado pela API.",
+            "not": {}
+          },
+          "status": {
+            "description": "Proibido — o status inicial é sempre `PENDENTE`.",
+            "not": {}
+          }
+        }
+      },
+      "DecidirExpedicaoRequest": {
+        "type": "object",
+        "description": "Corpo de `PATCH /api/expedicoes/{protocolo}/decisao` (`DecidirExpedicaoRequest`).",
+        "required": [
+          "decisao"
+        ],
+        "properties": {
+          "decisao": {
+            "type": "string",
+            "description": "Apenas os dois estados finais. `PENDENTE` é recusado com `422`.",
+            "enum": [
+              "AUTORIZADA",
+              "REJEITADA"
+            ],
+            "example": "AUTORIZADA"
+          },
+          "motivo": {
+            "type": "string",
+            "description": "Obrigatório quando `decisao` é `REJEITADA`. Quando a decisão é `AUTORIZADA`, o campo é descartado antes da validação e nunca chega a ser gravado.",
+            "example": "A rota atravessa território sob domínio inimigo."
+          }
+        }
+      },
+      "ErroGenerico": {
+        "type": "object",
+        "description": "Formato padrão das respostas de erro sem detalhamento por campo. Com `APP_DEBUG=true` o Laravel anexa também `exception`, `file`, `line` e `trace`.",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Nenhuma expedição encontrada para o protocolo informado."
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErroValidacao": {
+        "type": "object",
+        "description": "Resposta `422` do validador do Laravel. `message` traz a primeira mensagem, sufixada por `(and N more errors)` quando há mais de uma.",
+        "required": [
+          "message",
+          "errors"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "A expedição precisa de ao menos um participante."
+          },
+          "errors": {
+            "type": "object",
+            "description": "Mapa de campo para mensagens. Campos aninhados usam o caminho com pontos — ex.: `jornada.data_partida_prevista`.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "participantes": [
+                "A expedição precisa de ao menos um participante."
+              ]
+            }
+          }
+        }
+      },
+      "ErroConflito": {
+        "type": "object",
+        "description": "Resposta `409` de `ExpedicaoJaFinalizada`. Inclui o protocolo e o status vigente, para o chamador saber qual decisão já valia.",
+        "required": [
+          "message",
+          "protocolo",
+          "status"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "A expedição ELR-2026-000002 já foi AUTORIZADA e não aceita uma nova decisão."
+          },
+          "protocolo": {
+            "$ref": "#/components/schemas/ProtocoloExpedicao"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusDaExpedicao"
+          }
+        }
+      }
+    }
+  }
+}

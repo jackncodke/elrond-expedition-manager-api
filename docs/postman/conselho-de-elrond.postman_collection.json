@@ -45,9 +45,102 @@
       "key": "data_partida_passada",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "token_revogado",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
+    {
+      "name": "Documentação",
+      "description": "Rotas públicas que servem o próprio contrato da API. Não exigem token e não fazem parte da especificação OpenAPI — são ferramenta de leitura dela.",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('responde HTML', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html'));",
+                  "",
+                  "const html = pm.response.text();",
+                  "",
+                  "pm.test('monta o Swagger UI', () => pm.expect(html).to.include('SwaggerUIBundle'));",
+                  "pm.test('aponta para a especificação', () => pm.expect(html).to.include('/docs/openapi.json'));",
+                  "pm.test('fixa a versão do CDN', () => pm.expect(html).to.include('swagger-ui-dist@5.33.0'));",
+                  "pm.test('exige integridade dos arquivos do CDN', () => pm.expect(html).to.include('integrity=\"sha384-'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/documentation",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "documentation"
+              ]
+            },
+            "description": "Página do Swagger UI. É a única resposta HTML da API."
+          }
+        },
+        {
+          "name": "Especificação OpenAPI",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('responde JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "",
+                  "const spec = pm.response.json();",
+                  "",
+                  "pm.test('é OpenAPI 3.0.3', () => pm.expect(spec.openapi).to.eql('3.0.3'));",
+                  "pm.test('descreve os endpoints', () => pm.expect(Object.keys(spec.paths)).to.include('/api/login'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/docs/openapi.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "docs",
+                "openapi.json"
+              ]
+            },
+            "description": "Serve `docs/openapi.json`, que fica fora de `public/`. Repare que a rota não tem o prefixo `/api`."
+          }
+        }
+      ]
+    },
     {
       "name": "Login",
       "description": "Rota única para os dois perfis. O tipo do usuário vem na resposta.",
@@ -1006,6 +1099,177 @@
               ]
             },
             "description": "Credenciais erradas, e-mail inexistente e conta inativa devolvem a mesma resposta, para não permitir descobrir quais contas existem.\n\nAtenção: o login aceita 5 tentativas por minuto por e-mail + IP. Repetir esta requisição em sequência leva a 429."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "description": "Roda por último de propósito: o logout revoga os tokens capturados no Login, então esta pasta não pode vir antes das que precisam deles.",
+      "item": [
+        {
+          "name": "Logout do Reino",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda o token antes de revogá-lo, para a requisição seguinte",
+                  "// conseguir provar que ele deixou de valer.",
+                  "pm.collectionVariables.set('token_revogado', pm.collectionVariables.get('token_reino'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.test('sem corpo', () => pm.expect(pm.response.text()).to.be.empty);",
+                  "",
+                  "pm.collectionVariables.set('token_reino', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_reino}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logout"
+              ]
+            },
+            "description": "Revoga o token do Reino. Só o token desta requisição é revogado."
+          }
+        },
+        {
+          "name": "401 — Token revogado pelo logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('mensagem do framework', () => pm.expect(pm.response.json().message).to.eql('Unauthenticated.'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_revogado}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/expedicoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "expedicoes"
+              ]
+            },
+            "description": "O token revogado no passo anterior não autentica mais. O `401` vem do guard, antes da validação do corpo — por isso a requisição nem precisa mandar um."
+          }
+        },
+        {
+          "name": "401 — Logout sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logout"
+              ]
+            },
+            "description": "Sem `Authorization`, o logout é recusado como qualquer rota autenticada."
+          }
+        },
+        {
+          "name": "Logout do Conselho",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "",
+                  "pm.collectionVariables.set('token_conselho', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_conselho}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logout"
+              ]
+            },
+            "description": "Mesma rota para os dois perfis: o logout não exige tipo de usuário."
           }
         }
       ]

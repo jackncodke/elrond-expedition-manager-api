@@ -8,12 +8,19 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // As rotas de documentação vivem fora do prefixo `/api` e não precisam
+        // do grupo `web`, que traria sessão, cookies e CSRF para um projeto que
+        // não usa nenhum dos três.
+        then: function (): void {
+            Route::group([], __DIR__.'/../routes/docs.php');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
