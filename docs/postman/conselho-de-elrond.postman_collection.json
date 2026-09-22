@@ -113,7 +113,7 @@
                   "const spec = pm.response.json();",
                   "",
                   "pm.test('é OpenAPI 3.0.3', () => pm.expect(spec.openapi).to.eql('3.0.3'));",
-                  "pm.test('descreve os endpoints', () => pm.expect(Object.keys(spec.paths)).to.include('/api/login'));"
+                  "pm.test('descreve os endpoints', () => pm.expect(Object.keys(spec.paths)).to.include('/api/v1/login'));"
                 ]
               }
             }
@@ -188,12 +188,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/login",
+              "raw": "{{base_url}}/api/v1/login",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "login"
               ]
             },
@@ -242,12 +243,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/login",
+              "raw": "{{base_url}}/api/v1/login",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "login"
               ]
             },
@@ -312,12 +314,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             },
@@ -356,12 +359,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}"
               ]
@@ -403,12 +407,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/status",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/status",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "status"
@@ -475,12 +480,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "decisao"
@@ -544,12 +550,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "decisao"
@@ -599,12 +606,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             }
@@ -652,12 +660,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             },
@@ -708,12 +717,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "decisao"
@@ -768,12 +778,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "decisao"
@@ -807,12 +818,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/ELR-2026-999999",
+              "raw": "{{base_url}}/api/v1/expedicoes/ELR-2026-999999",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "ELR-2026-999999"
               ]
@@ -869,12 +881,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo_decidido}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo_decidido}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo_decidido}}",
                 "decisao"
@@ -929,12 +942,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes/{{protocolo}}/decisao",
+              "raw": "{{base_url}}/api/v1/expedicoes/{{protocolo}}/decisao",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes",
                 "{{protocolo}}",
                 "decisao"
@@ -984,12 +998,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             },
@@ -1039,12 +1054,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             },
@@ -1089,12 +1105,13 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/api/login",
+              "raw": "{{base_url}}/api/v1/login",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "login"
               ]
             },
@@ -1147,12 +1164,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/logout",
+              "raw": "{{base_url}}/api/v1/logout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "logout"
               ]
             },
@@ -1186,12 +1204,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/expedicoes",
+              "raw": "{{base_url}}/api/v1/expedicoes",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "expedicoes"
               ]
             },
@@ -1220,12 +1239,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/logout",
+              "raw": "{{base_url}}/api/v1/logout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "logout"
               ]
             },
@@ -1260,12 +1280,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/logout",
+              "raw": "{{base_url}}/api/v1/logout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
+                "v1",
                 "logout"
               ]
             },

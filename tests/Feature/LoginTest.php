@@ -13,7 +13,7 @@ it('autentica um usuario REINO e devolve token e tipo', function () {
         'password' => 'senha-do-reino',
     ]);
 
-    $resposta = $this->postJson(route('login'), [
+    $resposta = $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-do-reino',
     ]);
@@ -34,7 +34,7 @@ it('autentica um usuario CONSELHO e devolve token e tipo', function () {
         'password' => 'senha-do-conselho',
     ]);
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'elrond@elrond.test',
         'password' => 'senha-do-conselho',
     ])
@@ -49,7 +49,7 @@ it('recusa credenciais invalidas', function () {
         'password' => 'senha-do-reino',
     ]);
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-errada',
     ])
@@ -60,7 +60,7 @@ it('recusa credenciais invalidas', function () {
 });
 
 it('recusa um email que nao existe', function () {
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'ninguem@elrond.test',
         'password' => 'seja-la-o-que-for',
     ])->assertUnprocessable()->assertJsonValidationErrors('email');
@@ -72,12 +72,12 @@ it('recusa um usuario inativo sem revelar que ele existe', function () {
         'password' => 'senha-valida',
     ]);
 
-    $inativo = $this->postJson(route('login'), [
+    $inativo = $this->postJson(route('v1.login'), [
         'email' => 'isengard@elrond.test',
         'password' => 'senha-valida',
     ]);
 
-    $inexistente = $this->postJson(route('login'), [
+    $inexistente = $this->postJson(route('v1.login'), [
         'email' => 'ninguem@elrond.test',
         'password' => 'senha-valida',
     ]);
@@ -88,13 +88,13 @@ it('recusa um usuario inativo sem revelar que ele existe', function () {
 });
 
 it('exige email e password', function () {
-    $this->postJson(route('login'), [])
+    $this->postJson(route('v1.login'), [])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['email', 'password']);
 });
 
 it('recusa um email mal formado', function () {
-    $this->postJson(route('login'), ['email' => 'nao-e-email', 'password' => 'x'])
+    $this->postJson(route('v1.login'), ['email' => 'nao-e-email', 'password' => 'x'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('email');
 });
@@ -105,7 +105,7 @@ it('emite um token que autentica nas rotas protegidas pelo tipo', function () {
         'password' => 'senha-do-conselho',
     ]);
 
-    $token = $this->postJson(route('login'), [
+    $token = $this->postJson(route('v1.login'), [
         'email' => 'elrond@elrond.test',
         'password' => 'senha-do-conselho',
     ])->json('token');
@@ -124,7 +124,7 @@ it('limita tentativas de login repetidas', function () {
         'password' => 'senha-do-reino',
     ]);
 
-    $tentativa = fn () => $this->postJson(route('login'), [
+    $tentativa = fn () => $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-errada',
     ]);
@@ -147,7 +147,7 @@ it('nunca devolve o password do usuario', function () {
         'password' => 'senha-do-reino',
     ]);
 
-    $resposta = $this->postJson(route('login'), [
+    $resposta = $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-do-reino',
     ]);
@@ -164,7 +164,7 @@ it('emite um token de REINO que expira em 8 horas', function () {
 
     $this->freezeTime();
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-do-reino',
     ])->assertOk();
@@ -181,7 +181,7 @@ it('emite um token de CONSELHO que expira em 2 horas', function () {
 
     $this->freezeTime();
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'elrond@elrond.test',
         'password' => 'senha-do-conselho',
     ])->assertOk();
@@ -206,7 +206,7 @@ it('recusa com 401 um token expirado', function () {
         'password' => 'senha-do-conselho',
     ]);
 
-    $token = $this->postJson(route('login'), [
+    $token = $this->postJson(route('v1.login'), [
         'email' => 'elrond@elrond.test',
         'password' => 'senha-do-conselho',
     ])->json('token');
@@ -235,8 +235,8 @@ it('revoga o token anterior a cada novo login', function () {
 
     $credenciais = ['email' => 'gondor@elrond.test', 'password' => 'senha-do-reino'];
 
-    $antigo = $this->postJson(route('login'), $credenciais)->json('token');
-    $novo = $this->postJson(route('login'), $credenciais)->json('token');
+    $antigo = $this->postJson(route('v1.login'), $credenciais)->json('token');
+    $novo = $this->postJson(route('v1.login'), $credenciais)->json('token');
 
     Route::middleware(['auth:sanctum', 'reino'])
         ->get('/_teste/reino', fn (): array => ['ok' => true]);
@@ -261,7 +261,7 @@ it('nao revoga os tokens de outros usuarios ao fazer login', function () {
         'password' => 'senha-do-reino',
     ]);
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'gondor@elrond.test',
         'password' => 'senha-do-reino',
     ])->assertOk();

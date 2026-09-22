@@ -10,6 +10,7 @@ Especificação inicial completa: docs/prompts/001-schema-inicial.md
 - Endpoint de decisão do conselho sempre exige: IP allowlist + token de serviço + Sanctum tipo CONSELHO.
 - Sempre mostrar migrations pendentes antes de rodar `migrate`.
 - Testes automatizados obrigatórios para toda nova funcionalidade.
+- API versionada pela URL (`/api/v1`): endpoints ficam em `routes/api/vN.php`, com controllers/requests/resources em `Api\VN`. Mudança incompatível vai para uma versão nova, nunca altera a v1.
 
 <laravel-boost-guidelines>
 === foundation rules ===

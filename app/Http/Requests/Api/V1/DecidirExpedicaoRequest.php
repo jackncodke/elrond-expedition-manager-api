@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Api\V1;
 
 use App\Enums\StatusExpedicao;
 use Illuminate\Foundation\Http\FormRequest;

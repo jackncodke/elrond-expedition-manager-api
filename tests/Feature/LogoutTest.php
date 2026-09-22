@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
  */
 function tokenDeLogin(Usuario $usuario, string $password): string
 {
-    return test()->postJson(route('login'), [
+    return test()->postJson(route('v1.login'), [
         'email' => $usuario->email,
         'password' => $password,
     ])->json('token');
@@ -20,7 +20,7 @@ it('revoga o token atual e devolve 204', function () {
     $token = tokenDeLogin($reino, 'senha-do-reino');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertNoContent();
 
     $this->assertDatabaseCount('personal_access_tokens', 0);
@@ -34,7 +34,7 @@ it('invalida o token usado no logout para as requisicoes seguintes', function ()
         ->get('/_teste/conselho', fn (): array => ['ok' => true]);
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertNoContent();
 
     reiniciaAutenticacao();
@@ -48,7 +48,7 @@ it('aceita tanto REINO quanto CONSELHO', function (string $estado, string $passw
     $usuario = Usuario::factory()->{$estado}()->create(['password' => $password]);
 
     $this->withHeader('Authorization', 'Bearer '.tokenDeLogin($usuario, $password))
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertNoContent();
 })->with([
     'reino' => ['reino', 'senha-do-reino'],
@@ -56,12 +56,12 @@ it('aceita tanto REINO quanto CONSELHO', function (string $estado, string $passw
 ]);
 
 it('recusa o logout sem autenticacao', function () {
-    $this->postJson(route('logout'))->assertUnauthorized();
+    $this->postJson(route('v1.logout'))->assertUnauthorized();
 });
 
 it('recusa o logout com um token invalido', function () {
     $this->withHeader('Authorization', 'Bearer token-que-nunca-existiu')
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertUnauthorized();
 });
 
@@ -72,7 +72,7 @@ it('recusa o logout com um token ja expirado', function () {
     $this->travelTo(Date::now()->addMinutes(121));
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertUnauthorized();
 });
 
@@ -84,7 +84,7 @@ it('revoga apenas o token da requisicao, nao os demais do usuario', function () 
     $reino->createToken('api-secundario');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson(route('logout'))
+        ->postJson(route('v1.logout'))
         ->assertNoContent();
 
     expect($reino->tokens()->count())->toBe(1);

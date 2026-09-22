@@ -9,7 +9,7 @@ use App\Models\Usuario;
  */
 it('responde as falhas de validacao em portugues', function () {
     $resposta = $this->actingAs(Usuario::factory()->reino()->create(), 'sanctum')
-        ->postJson(route('expedicoes.store'), [
+        ->postJson(route('v1.expedicoes.store'), [
             'jornada' => ['origem' => '', 'destino' => str_repeat('a', 200)],
             'participantes' => [['nome' => 'Faramir']],
             'itens_suprimento' => [['tipo' => 'arma', 'quantidade' => 0]],
@@ -31,7 +31,7 @@ it('responde as falhas de validacao em portugues', function () {
 
 it('usa nomes legiveis de campo em vez do caminho aninhado', function () {
     $resposta = $this->actingAs(Usuario::factory()->reino()->create(), 'sanctum')
-        ->postJson(route('expedicoes.store'), [
+        ->postJson(route('v1.expedicoes.store'), [
             'jornada' => ['origem' => 'Edoras', 'destino' => 'Isengard'],
             'participantes' => [['nome' => 'Éomer', 'raca' => 'Humano', 'papel' => 'Líder']],
             'itens_suprimento' => [],
@@ -48,7 +48,7 @@ it('usa nomes legiveis de campo em vez do caminho aninhado', function () {
 });
 
 it('responde as credenciais invalidas em portugues', function () {
-    $resposta = $this->postJson(route('login'), [
+    $resposta = $this->postJson(route('v1.login'), [
         'email' => 'ninguem@elrond.test',
         'password' => 'seja-la-o-que-for',
     ]);

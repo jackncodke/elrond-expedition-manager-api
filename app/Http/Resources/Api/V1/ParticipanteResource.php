@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Api\V1;
 
-use App\Models\ItemSuprimento;
+use App\Models\Participante;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin ItemSuprimento
+ * @mixin Participante
  */
-class ItemSuprimentoResource extends JsonResource
+class ParticipanteResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -20,9 +20,8 @@ class ItemSuprimentoResource extends JsonResource
     {
         return [
             'nome' => $this->nome,
-            'tipo' => $this->tipo,
-            'quantidade' => $this->quantidade,
-            'observacoes' => $this->observacoes,
+            'raca' => $this->raca,
+            'papel' => $this->papel,
         ];
     }
 }

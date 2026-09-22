@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Resources\StatusExpedicaoResource;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\V1\StatusExpedicaoResource;
 use App\Models\Expedicao;
 
 class StatusExpedicaoController extends Controller

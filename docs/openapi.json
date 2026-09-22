@@ -3,7 +3,7 @@
   "info": {
     "title": "API do Conselho de Elrond",
     "version": "1.0.0",
-    "description": "API REST para registro, análise e autorização de expedições.\n\nReinos registram solicitações de expedição e acompanham o andamento por um protocolo público; Membros do Conselho deliberam sobre elas por um endpoint interno, protegido por três camadas independentes (allowlist de IP, token de serviço e token Sanctum de um usuário `CONSELHO`).\n\nExiste **uma única tabela `usuarios`**, com o campo `tipo` (`REINO` ou `CONSELHO`) distinguindo os dois perfis. O login é o mesmo para ambos.\n\nTodas as respostas desta especificação são JSON, inclusive as de erro, e as mensagens saem em português — com exceção do `401`, cuja mensagem (`Unauthenticated.`) vem do framework sem tradução.\n\nEsta especificação foi escrita à mão a partir dos controllers, Form Requests, Resources e middlewares reais do projeto: nenhum pacote de geração automática é usado.\n\nA própria API serve esta especificação em `GET /docs/openapi.json` e uma página do Swagger UI em `GET /api/documentation`. As duas rotas são públicas e ficam de fora desta especificação de propósito: são ferramenta de leitura do contrato, não parte dele."
+    "description": "API REST para registro, análise e autorização de expedições.\n\nReinos registram solicitações de expedição e acompanham o andamento por um protocolo público; Membros do Conselho deliberam sobre elas por um endpoint interno, protegido por três camadas independentes (allowlist de IP, token de serviço e token Sanctum de um usuário `CONSELHO`).\n\nExiste **uma única tabela `usuarios`**, com o campo `tipo` (`REINO` ou `CONSELHO`) distinguindo os dois perfis. O login é o mesmo para ambos.\n\n**Versionamento.** A API é versionada pela URL: todos os endpoints desta especificação vivem sob `/api/v1`. Mudanças incompatíveis com clientes existentes entram numa versão nova (`/api/v2`), sem alterar a v1. Caminhos sem versão respondem `404`.\n\nTodas as respostas desta especificação são JSON, inclusive as de erro, e as mensagens saem em português — com exceção do `401`, cuja mensagem (`Unauthenticated.`) vem do framework sem tradução.\n\nEsta especificação foi escrita à mão a partir dos controllers, Form Requests, Resources e middlewares reais do projeto: nenhum pacote de geração automática é usado.\n\nA própria API serve esta especificação em `GET /docs/openapi.json` e uma página do Swagger UI em `GET /api/documentation`. As duas rotas são públicas e ficam de fora desta especificação de propósito: são ferramenta de leitura do contrato, não parte dele."
   },
   "servers": [
     {
@@ -26,7 +26,7 @@
     }
   ],
   "paths": {
-    "/api/login": {
+    "/api/v1/login": {
       "post": {
         "tags": [
           "Autenticação"
@@ -147,7 +147,7 @@
         }
       }
     },
-    "/api/logout": {
+    "/api/v1/logout": {
       "post": {
         "tags": [
           "Autenticação"
@@ -170,7 +170,7 @@
         }
       }
     },
-    "/api/expedicoes": {
+    "/api/v1/expedicoes": {
       "post": {
         "tags": [
           "Expedições"
@@ -388,7 +388,7 @@
         }
       }
     },
-    "/api/expedicoes/{protocolo}": {
+    "/api/v1/expedicoes/{protocolo}": {
       "parameters": [
         {
           "$ref": "#/components/parameters/Protocolo"
@@ -473,7 +473,7 @@
         }
       }
     },
-    "/api/expedicoes/{protocolo}/status": {
+    "/api/v1/expedicoes/{protocolo}/status": {
       "parameters": [
         {
           "$ref": "#/components/parameters/Protocolo"
@@ -533,7 +533,7 @@
         }
       }
     },
-    "/api/expedicoes/{protocolo}/decisao": {
+    "/api/v1/expedicoes/{protocolo}/decisao": {
       "parameters": [
         {
           "$ref": "#/components/parameters/Protocolo"
@@ -738,7 +738,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Token pessoal emitido por `POST /api/login` (Laravel Sanctum), enviado como `Authorization: Bearer <token>`. O `tipo` do usuário dono do token é o que libera cada rota.\n\n**Validade.** O token expira conforme o perfil de quem o recebeu: 8 horas (480 min) para `REINO` e 2 horas (120 min) para `CONSELHO` — o Conselho tem o prazo mais curto porque é o perfil que decide expedições. Os prazos são configuráveis em `SANCTUM_TOKEN_EXPIRATION_REINO` e `SANCTUM_TOKEN_EXPIRATION_CONSELHO`. O prazo é gravado na emissão: mudar a configuração não afeta tokens já emitidos. Passado o prazo, qualquer rota autenticada responde `401`.\n\n**Uma sessão por usuário.** Cada login revoga todos os tokens anteriores do mesmo usuário. Para encerrar apenas a sessão atual, use `POST /api/logout`."
+        "description": "Token pessoal emitido por `POST /api/v1/login` (Laravel Sanctum), enviado como `Authorization: Bearer <token>`. O `tipo` do usuário dono do token é o que libera cada rota.\n\n**Validade.** O token expira conforme o perfil de quem o recebeu: 8 horas (480 min) para `REINO` e 2 horas (120 min) para `CONSELHO` — o Conselho tem o prazo mais curto porque é o perfil que decide expedições. Os prazos são configuráveis em `SANCTUM_TOKEN_EXPIRATION_REINO` e `SANCTUM_TOKEN_EXPIRATION_CONSELHO`. O prazo é gravado na emissão: mudar a configuração não afeta tokens já emitidos. Passado o prazo, qualquer rota autenticada responde `401`.\n\n**Uma sessão por usuário.** Cada login revoga todos os tokens anteriores do mesmo usuário. Para encerrar apenas a sessão atual, use `POST /api/v1/logout`."
       },
       "internalServiceToken": {
         "type": "apiKey",
@@ -761,7 +761,7 @@
     },
     "responses": {
       "NaoAutenticado": {
-        "description": "Token ausente, inválido, expirado ou revogado — por `POST /api/logout` ou por um login posterior do mesmo usuário. A mensagem vem do framework e não é traduzida.",
+        "description": "Token ausente, inválido, expirado ou revogado — por `POST /api/v1/logout` ou por um login posterior do mesmo usuário. A mensagem vem do framework e não é traduzida.",
         "content": {
           "application/json": {
             "schema": {
@@ -1148,7 +1148,7 @@
       },
       "LoginRequest": {
         "type": "object",
-        "description": "Corpo de `POST /api/login` (`LoginRequest`).",
+        "description": "Corpo de `POST /api/v1/login` (`LoginRequest`).",
         "required": [
           "email",
           "password"
@@ -1190,7 +1190,7 @@
       },
       "CriarExpedicaoRequest": {
         "type": "object",
-        "description": "Corpo de `POST /api/expedicoes` (`StoreExpedicaoRequest`). Os campos `usuario_id`, `protocolo` e `status` são **proibidos**: enviá-los resulta em `422`.",
+        "description": "Corpo de `POST /api/v1/expedicoes` (`StoreExpedicaoRequest`). Os campos `usuario_id`, `protocolo` e `status` são **proibidos**: enviá-los resulta em `422`.",
         "required": [
           "jornada",
           "participantes",
@@ -1308,7 +1308,7 @@
       },
       "DecidirExpedicaoRequest": {
         "type": "object",
-        "description": "Corpo de `PATCH /api/expedicoes/{protocolo}/decisao` (`DecidirExpedicaoRequest`).",
+        "description": "Corpo de `PATCH /api/v1/expedicoes/{protocolo}/decisao` (`DecidirExpedicaoRequest`).",
         "required": [
           "decisao"
         ],

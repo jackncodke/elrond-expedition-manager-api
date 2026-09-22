@@ -26,6 +26,7 @@ navegável em `/api/documentation` com a aplicação no ar.
   - [Validade do token](#validade-do-token)
   - [Uma sessão por usuário](#uma-sessão-por-usuário)
 - [Dados de exemplo](#dados-de-exemplo)
+- [Versionamento](#versionamento)
 - [Endpoints](#endpoints)
   - [1. Login](#1-login)
   - [2. Logout](#2-logout)
@@ -139,7 +140,7 @@ autentica de novo, e a tabela `personal_access_tokens` não acumula credenciais
 órfãs.
 
 Na prática: se você faz login em dois terminais, só o segundo token funciona.
-Para encerrar uma sessão sem invalidar as outras, use [`POST /api/logout`](#2-logout),
+Para encerrar uma sessão sem invalidar as outras, use [`POST /api/v1/logout`](#2-logout),
 que revoga apenas o token da própria requisição.
 
 ---
@@ -163,22 +164,53 @@ A senha `password` vale apenas para desenvolvimento.
 
 ---
 
+## Versionamento
+
+A API é versionada pela URL. Todos os endpoints do contrato vivem sob
+`/api/v1`; a versão atual é a **v1**. Caminhos sem versão (`/api/login`,
+`/api/expedicoes/...`) respondem `404`.
+
+- **O que entra numa versão existente:** correções e acréscimos compatíveis —
+  um campo novo na resposta, um endpoint novo, um parâmetro opcional.
+- **O que exige versão nova:** remover ou renomear campos, mudar tipos, tornar
+  obrigatório o que era opcional ou mudar o significado de um status HTTP.
+- **Fora das versões:** o Swagger UI (`/api/documentation`) e a especificação
+  (`/docs/openapi.json`) são ferramentas de leitura do contrato, não parte dele.
+
+Cada versão tem as próprias rotas, controllers, Form Requests e Resources.
+Models, Actions, Enums e middlewares são compartilhados entre versões:
+
+| Camada | v1 |
+|---|---|
+| Rotas | `routes/api/v1.php` (prefixo `/api/v1`, nomes `v1.*`) |
+| Controllers | `App\Http\Controllers\Api\V1` |
+| Form Requests | `App\Http\Requests\Api\V1` |
+| Resources | `App\Http\Resources\Api\V1` |
+
+Para abrir a **v2**: crie `routes/api/v2.php`, registre o grupo em
+`routes/api.php` ao lado do da v1 (`Route::prefix('v2')->name('v2.')`), crie os
+namespaces `Api\V2` só para as classes que mudam — reaproveitando as da v1 no
+resto — e documente os novos caminhos na especificação OpenAPI. A v1 continua
+no ar sem alterações até ser descontinuada.
+
+---
+
 ## Endpoints
 
 | Método | Rota | Autenticação | Descrição |
 |---|---|---|---|
-| `POST` | `/api/login` | Nenhuma | Autentica um Reino ou Membro do Conselho e devolve um token do Sanctum |
-| `POST` | `/api/logout` | Bearer (qualquer tipo) | Revoga o token usado na requisição |
-| `POST` | `/api/expedicoes` | Bearer (`REINO`) | Registra uma expedição com jornada, participantes e itens de suprimento |
-| `GET` | `/api/expedicoes/{protocolo}` | Nenhuma | Consulta pública dos dados completos de uma expedição |
-| `PATCH` | `/api/expedicoes/{protocolo}/decisao` | IP allowlist + `X-Internal-Service-Token` + Bearer (`CONSELHO`) | Registra a deliberação do Conselho |
-| `GET` | `/api/expedicoes/{protocolo}/status` | Nenhuma | Consulta pública apenas do andamento |
+| `POST` | `/api/v1/login` | Nenhuma | Autentica um Reino ou Membro do Conselho e devolve um token do Sanctum |
+| `POST` | `/api/v1/logout` | Bearer (qualquer tipo) | Revoga o token usado na requisição |
+| `POST` | `/api/v1/expedicoes` | Bearer (`REINO`) | Registra uma expedição com jornada, participantes e itens de suprimento |
+| `GET` | `/api/v1/expedicoes/{protocolo}` | Nenhuma | Consulta pública dos dados completos de uma expedição |
+| `PATCH` | `/api/v1/expedicoes/{protocolo}/decisao` | IP allowlist + `X-Internal-Service-Token` + Bearer (`CONSELHO`) | Registra a deliberação do Conselho |
+| `GET` | `/api/v1/expedicoes/{protocolo}/status` | Nenhuma | Consulta pública apenas do andamento |
 | `GET` | `/api/documentation` | Nenhuma | Swagger UI com a especificação da API |
 | `GET` | `/docs/openapi.json` | Nenhuma | Especificação OpenAPI 3.0.3 |
 
 ### 1. Login
 
-`POST /api/login` — autentica qualquer usuário e devolve um token do Sanctum
+`POST /api/v1/login` — autentica qualquer usuário e devolve um token do Sanctum
 junto do seu tipo. Limitado a 5 tentativas por minuto por e-mail + IP.
 
 Dois efeitos importantes a cada login:
@@ -190,7 +222,7 @@ Dois efeitos importantes a cada login:
 **Como um Reino:**
 
 ```bash
-curl -s -X POST http://localhost:8000/api/login \
+curl -s -X POST http://localhost:8000/api/v1/login \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
@@ -217,7 +249,7 @@ curl -s -X POST http://localhost:8000/api/login \
 **Como um Membro do Conselho** — mesma rota, só muda a credencial:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/login \
+curl -s -X POST http://localhost:8000/api/v1/login \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
@@ -244,7 +276,7 @@ curl -s -X POST http://localhost:8000/api/login \
 Para reaproveitar o token nos próximos comandos:
 
 ```bash
-TOKEN_REINO=$(curl -s -X POST http://localhost:8000/api/login \
+TOKEN_REINO=$(curl -s -X POST http://localhost:8000/api/v1/login \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{"email":"gondor@reinos.elrond.test","password":"password"}' \
   | python -c "import sys,json; print(json.load(sys.stdin)['token'])")
@@ -264,12 +296,12 @@ Credenciais inválidas, e-mail inexistente ou conta inativa devolvem o **mesmo**
 
 ### 2. Logout
 
-`POST /api/logout` — **exige um token válido, de qualquer tipo**. Revoga apenas
+`POST /api/v1/logout` — **exige um token válido, de qualquer tipo**. Revoga apenas
 o token enviado na requisição; os demais tokens do mesmo usuário, se houver,
 continuam valendo. Devolve `204` sem corpo.
 
 ```bash
-curl -s -i -X POST http://localhost:8000/api/logout \
+curl -s -i -X POST http://localhost:8000/api/v1/logout \
   -H "Accept: application/json" \
   -H "Authorization: Bearer $TOKEN_REINO"
 ```
@@ -281,7 +313,7 @@ HTTP/1.1 204 No Content
 O token deixa de valer imediatamente. Reutilizá-lo devolve `401`:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/expedicoes \
+curl -s -X POST http://localhost:8000/api/v1/expedicoes \
   -H "Accept: application/json" \
   -H "Authorization: Bearer $TOKEN_REINO"
 ```
@@ -298,12 +330,12 @@ do cliente: um token já revogado nunca volta a ser aceito.
 
 ### 3. Criar expedição
 
-`POST /api/expedicoes` — **exige token de um usuário `REINO`**. Cria a
+`POST /api/v1/expedicoes` — **exige token de um usuário `REINO`**. Cria a
 expedição com jornada, participantes e itens de suprimento numa única
 requisição, gera o protocolo e devolve `201`.
 
 ```bash
-curl -s -X POST http://localhost:8000/api/expedicoes \
+curl -s -X POST http://localhost:8000/api/v1/expedicoes \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_REINO" \
@@ -370,7 +402,7 @@ O Reino solicitante vem sempre do token. Enviar `usuario_id`, `protocolo` ou
 ignorar em silêncio:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/expedicoes \
+curl -s -X POST http://localhost:8000/api/v1/expedicoes \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_REINO" \
   -d '{"usuario_id": 2, "jornada": {}, "participantes": [], "itens_suprimento": []}'
@@ -418,12 +450,12 @@ Com o token de um Membro do Conselho, `403`:
 
 ### 4. Consultar expedição
 
-`GET /api/expedicoes/{protocolo}` — **consulta pública**, sem autenticação.
+`GET /api/v1/expedicoes/{protocolo}` — **consulta pública**, sem autenticação.
 Devolve os dados completos, o status, a última atualização e o motivo da
 rejeição quando houver.
 
 ```bash
-curl -s http://localhost:8000/api/expedicoes/ELR-2026-000002 \
+curl -s http://localhost:8000/api/v1/expedicoes/ELR-2026-000002 \
   -H "Accept: application/json"
 ```
 
@@ -467,7 +499,7 @@ Protocolo inexistente devolve `404`:
 
 ### 5. Decisão do Conselho (interno)
 
-`PATCH /api/expedicoes/{protocolo}/decisao` — **requisição interna**. Exige as
+`PATCH /api/v1/expedicoes/{protocolo}/decisao` — **requisição interna**. Exige as
 três camadas ao mesmo tempo:
 
 1. **Rede** — IP de origem dentro de `INTERNAL_ALLOWED_IPS`
@@ -480,12 +512,12 @@ qual delas barrou.
 **Autorizar:**
 
 ```bash
-TOKEN_CONSELHO=$(curl -s -X POST http://localhost:8000/api/login \
+TOKEN_CONSELHO=$(curl -s -X POST http://localhost:8000/api/v1/login \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{"email":"elrond@conselho.elrond.test","password":"password"}' \
   | python -c "import sys,json; print(json.load(sys.stdin)['token'])")
 
-curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
+curl -s -X PATCH http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/decisao \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_CONSELHO" \
@@ -496,7 +528,7 @@ curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
 **Rejeitar** — `motivo` é obrigatório:
 
 ```bash
-curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
+curl -s -X PATCH http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/decisao \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_CONSELHO" \
@@ -527,7 +559,7 @@ remova `127.0.0.1` de `INTERNAL_ALLOWED_IPS`, ou chame a API por trás de um
 proxy. O resultado é `403` mesmo com token de usuário válido:
 
 ```bash
-curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
+curl -s -X PATCH http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/decisao \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_CONSELHO" \
   -H "X-Internal-Service-Token: $INTERNAL_SERVICE_TOKEN" \
@@ -541,7 +573,7 @@ curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
 **Sem o token de serviço** — mesma resposta:
 
 ```bash
-curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
+curl -s -X PATCH http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/decisao \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_CONSELHO" \
   -d '{"decisao":"AUTORIZADA"}'
@@ -555,7 +587,7 @@ curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
 terceira:
 
 ```bash
-curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
+curl -s -X PATCH http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/decisao \
   -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_REINO" \
   -H "X-Internal-Service-Token: $INTERNAL_SERVICE_TOKEN" \
@@ -589,12 +621,12 @@ curl -s -X PATCH http://localhost:8000/api/expedicoes/ELR-2026-000001/decisao \
 
 ### 6. Consultar status
 
-`GET /api/expedicoes/{protocolo}/status` — **consulta pública**. Devolve apenas
+`GET /api/v1/expedicoes/{protocolo}/status` — **consulta pública**. Devolve apenas
 o andamento, sem carregar jornada, participantes nem itens. É o endpoint certo
 para polling.
 
 ```bash
-curl -s http://localhost:8000/api/expedicoes/ELR-2026-000001/status \
+curl -s http://localhost:8000/api/v1/expedicoes/ELR-2026-000001/status \
   -H "Accept: application/json"
 ```
 
@@ -633,12 +665,12 @@ o polling.
 
 | Endpoint | Público | `REINO` | `CONSELHO` | Interno |
 |---|:---:|:---:|:---:|:---:|
-| `POST /api/login` | ✅ | ✅ | ✅ | — |
-| `POST /api/logout` | ❌ `401` | ✅ | ✅ | — |
-| `POST /api/expedicoes` | ❌ `401` | ✅ | ❌ `403` | — |
-| `GET /api/expedicoes/{protocolo}` | ✅ | ✅ | ✅ | — |
-| `PATCH /api/expedicoes/{protocolo}/decisao` | ❌ `403` | ❌ `403` | ✅ | obrigatório |
-| `GET /api/expedicoes/{protocolo}/status` | ✅ | ✅ | ✅ | — |
+| `POST /api/v1/login` | ✅ | ✅ | ✅ | — |
+| `POST /api/v1/logout` | ❌ `401` | ✅ | ✅ | — |
+| `POST /api/v1/expedicoes` | ❌ `401` | ✅ | ❌ `403` | — |
+| `GET /api/v1/expedicoes/{protocolo}` | ✅ | ✅ | ✅ | — |
+| `PATCH /api/v1/expedicoes/{protocolo}/decisao` | ❌ `403` | ❌ `403` | ✅ | obrigatório |
+| `GET /api/v1/expedicoes/{protocolo}/status` | ✅ | ✅ | ✅ | — |
 | `GET /api/documentation` | ✅ | ✅ | ✅ | — |
 | `GET /docs/openapi.json` | ✅ | ✅ | ✅ | — |
 
@@ -821,16 +853,18 @@ app/
   Enums/             TipoUsuario, StatusExpedicao
   Exceptions/        ExpedicaoJaFinalizada (renderiza 409)
   Http/
-    Controllers/     Login, Logout, Expedicao, DecisaoExpedicao, StatusExpedicao,
-                     Documentacao, EspecificacaoOpenApi
+    Controllers/     Documentacao, EspecificacaoOpenApi (fora das versões)
+      Api/V1/        Login, Logout, Expedicao, DecisaoExpedicao, StatusExpedicao
     Middleware/      EnsureUserIsReino, EnsureUserIsConselho, EnsureRequestIsInternal
-    Requests/        Login, StoreExpedicao, DecidirExpedicao
-    Resources/       Expedicao, StatusExpedicao, Usuario, UsuarioPublico, Jornada, ...
+    Requests/Api/V1/ Login, StoreExpedicao, DecidirExpedicao
+    Resources/Api/V1/ Expedicao, StatusExpedicao, Usuario, UsuarioPublico, Jornada, ...
   Models/            Usuario, Expedicao, Jornada, Participante, ItemSuprimento
   Support/           GeradorDeProtocolo
 config/conselho.php  allowlist de IPs, token de serviço, prefixo do protocolo,
                      expiração dos tokens por tipo, caminho da especificação
-routes/api.php       rotas sob o prefixo /api
+routes/api.php       ponto de entrada sob /api: registra cada versão e o
+                     Swagger UI
+routes/api/v1.php    rotas da v1 (prefixo /api/v1, nomes v1.*)
 routes/docs.php      /docs/openapi.json, fora do prefixo (registrado pelo
                      `then:` do bootstrap/app.php)
 ```

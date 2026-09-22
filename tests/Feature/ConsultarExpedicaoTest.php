@@ -8,7 +8,7 @@ it('consulta uma expedicao pelo protocolo sem autenticacao', function () {
     $reino = Usuario::factory()->reino()->create(['nome' => 'Reino de Gondor', 'codigo' => 'GONDOR']);
     $expedicao = Expedicao::factory()->for($reino, 'reino')->completa(participantes: 3, itens: 2)->create();
 
-    $this->getJson(route('expedicoes.show', $expedicao->protocolo))
+    $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo))
         ->assertOk()
         ->assertJsonPath('protocolo', $expedicao->protocolo)
         ->assertJsonPath('status', StatusExpedicao::Pendente->value)
@@ -26,13 +26,13 @@ it('consulta uma expedicao pelo protocolo sem autenticacao', function () {
 });
 
 it('devolve 404 para um protocolo que nao existe', function () {
-    $this->getJson(route('expedicoes.show', 'ELR-2026-999999'))
+    $this->getJson(route('v1.expedicoes.show', 'ELR-2026-999999'))
         ->assertNotFound()
         ->assertJsonPath('message', 'Nenhuma expedição encontrada para o protocolo informado.');
 });
 
 it('nao revela o nome da classe do model no 404', function () {
-    $resposta = $this->getJson(route('expedicoes.show', 'ELR-2026-999999'));
+    $resposta = $this->getJson(route('v1.expedicoes.show', 'ELR-2026-999999'));
 
     expect($resposta->content())->not->toContain('App\\Models')
         ->and($resposta->content())->not->toContain('Expedicao]');
@@ -41,7 +41,7 @@ it('nao revela o nome da classe do model no 404', function () {
 it('devolve a ultima atualizacao da expedicao', function () {
     $expedicao = Expedicao::factory()->completa()->create();
 
-    $this->getJson(route('expedicoes.show', $expedicao->protocolo))
+    $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo))
         ->assertOk()
         ->assertJsonPath('atualizado_em', $expedicao->updated_at?->toIso8601String())
         ->assertJsonPath('criado_em', $expedicao->created_at?->toIso8601String());
@@ -54,7 +54,7 @@ it('mostra o motivo e quem decidiu quando a expedicao foi rejeitada', function (
         ->rejeitada('Rota sob domínio inimigo.', $conselheiro)
         ->create();
 
-    $this->getJson(route('expedicoes.show', $expedicao->protocolo))
+    $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo))
         ->assertOk()
         ->assertJsonPath('status', StatusExpedicao::Rejeitada->value)
         ->assertJsonPath('motivo_rejeicao', 'Rota sob domínio inimigo.')
@@ -65,7 +65,7 @@ it('mostra o motivo e quem decidiu quando a expedicao foi rejeitada', function (
 it('mostra decidido_por e motivo como null enquanto a expedicao esta pendente', function () {
     $expedicao = Expedicao::factory()->completa()->create();
 
-    $this->getJson(route('expedicoes.show', $expedicao->protocolo))
+    $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo))
         ->assertOk()
         ->assertJsonPath('motivo_rejeicao', null)
         ->assertJsonPath('decidido_por', null)
@@ -76,7 +76,7 @@ it('nao expoe email nem o estado da conta do reino na consulta publica', functio
     $reino = Usuario::factory()->reino()->create(['email' => 'gondor@reinos.elrond.test']);
     $expedicao = Expedicao::factory()->for($reino, 'reino')->completa()->create();
 
-    $resposta = $this->getJson(route('expedicoes.show', $expedicao->protocolo));
+    $resposta = $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo));
 
     expect($resposta->json('reino'))->not->toHaveKey('email')
         ->and($resposta->json('reino'))->not->toHaveKey('ativo')
@@ -89,7 +89,7 @@ it('consulta a expedicao sem disparar consultas N+1', function () {
 
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->getJson(route('expedicoes.show', $expedicao->protocolo))->assertOk();
+        $this->getJson(route('v1.expedicoes.show', $expedicao->protocolo))->assertOk();
 
         return count(DB::getQueryLog());
     };

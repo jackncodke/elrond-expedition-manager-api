@@ -38,7 +38,7 @@ function criarComoReino(?array $payload = null, ?Usuario $reino = null)
 {
     return test()
         ->actingAs($reino ?? Usuario::factory()->reino()->create(), 'sanctum')
-        ->postJson(route('expedicoes.store'), $payload ?? payloadDaExpedicao());
+        ->postJson(route('v1.expedicoes.store'), $payload ?? payloadDaExpedicao());
 }
 
 it('registra a expedicao com jornada, participantes e itens numa unica requisicao', function () {
@@ -110,7 +110,7 @@ it('usa o usuario autenticado como solicitante e ignora um usuario_id forjado', 
     $outroReino = Usuario::factory()->reino()->create();
 
     test()->actingAs($reino, 'sanctum')
-        ->postJson(route('expedicoes.store'), payloadDaExpedicao(['usuario_id' => $outroReino->id]))
+        ->postJson(route('v1.expedicoes.store'), payloadDaExpedicao(['usuario_id' => $outroReino->id]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors('usuario_id');
 
@@ -121,7 +121,7 @@ it('recusa protocolo e status enviados pelo cliente', function () {
     $reino = Usuario::factory()->reino()->create();
 
     test()->actingAs($reino, 'sanctum')
-        ->postJson(route('expedicoes.store'), payloadDaExpedicao([
+        ->postJson(route('v1.expedicoes.store'), payloadDaExpedicao([
             'protocolo' => 'ELR-1999-000001',
             'status' => StatusExpedicao::Autorizada->value,
         ]))
@@ -131,14 +131,14 @@ it('recusa protocolo e status enviados pelo cliente', function () {
 
 it('bloqueia um usuario do CONSELHO', function () {
     test()->actingAs(Usuario::factory()->conselho()->create(), 'sanctum')
-        ->postJson(route('expedicoes.store'), payloadDaExpedicao())
+        ->postJson(route('v1.expedicoes.store'), payloadDaExpedicao())
         ->assertForbidden();
 
     $this->assertDatabaseCount('expedicoes', 0);
 });
 
 it('exige autenticacao', function () {
-    $this->postJson(route('expedicoes.store'), payloadDaExpedicao())->assertUnauthorized();
+    $this->postJson(route('v1.expedicoes.store'), payloadDaExpedicao())->assertUnauthorized();
 });
 
 it('exige jornada completa', function () {

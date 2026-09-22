@@ -37,6 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
         //
         // O alvo é a interface AuthenticatesRequests, e não a classe
         // Authenticate: é ela que consta na lista de prioridade padrão.
+        // Projeto API-only: visitante sem token recebe 401 em JSON, nunca um
+        // redirecionamento. O padrão do framework aponta para `route('login')`,
+        // que não existe mais depois que as rotas ganharam prefixo de versão.
+        $middleware->redirectGuestsTo(null);
+
         $middleware->prependToPriorityList(
             before: AuthenticatesRequests::class,
             prepend: EnsureRequestIsInternal::class,

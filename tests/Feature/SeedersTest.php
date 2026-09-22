@@ -23,12 +23,12 @@ it('cria dois reinos e um membro do conselho', function () {
 });
 
 it('permite login com a senha padrao dos seeders', function () {
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'gondor@reinos.elrond.test',
         'password' => UsuarioSeeder::SENHA_PADRAO,
     ])->assertOk();
 
-    $this->postJson(route('login'), [
+    $this->postJson(route('v1.login'), [
         'email' => 'elrond@conselho.elrond.test',
         'password' => UsuarioSeeder::SENHA_PADRAO,
     ])->assertOk();

@@ -35,7 +35,7 @@ function decidir(array $corpo, array $opcoes = [])
         $requisicao = $requisicao->actingAs($usuario, 'sanctum');
     }
 
-    return $requisicao->patchJson(route('expedicoes.decisao', $protocolo), $corpo, $headers);
+    return $requisicao->patchJson(route('v1.expedicoes.decisao', $protocolo), $corpo, $headers);
 }
 
 it('autoriza a expedicao quando as tres camadas sao validas', function () {
@@ -135,7 +135,7 @@ it('nao serve de oraculo de token para quem esta fora da rede', function () {
     // mesma resposta: senão dá para testar tokens contra o endpoint interno.
     $comTokenInvalido = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
         ->withHeader('Authorization', 'Bearer token-inventado')
-        ->patchJson(route('expedicoes.decisao', $this->expedicao->protocolo), [
+        ->patchJson(route('v1.expedicoes.decisao', $this->expedicao->protocolo), [
             'decisao' => StatusExpedicao::Autorizada->value,
         ]);
 
